@@ -68,17 +68,5 @@ func themeSK(themeID string) string {
 	return "THEME#" + themeID
 }
 
-// themeGSI1PK generates the GSI1PK for a theme item.
-// GSI1PK: USER#<user_id> (Same as PK for user-specific listing)
-func themeGSI1PK(userID string) string {
-	return userPK(userID) // Reuse userPK for consistency
-}
-
-// themeGSI1SK generates the GSI1SK for a theme item.
-// GSI1SK: THEME#<theme_id> (Same as SK for user-specific listing)
-func themeGSI1SK(themeID string) string {
-	return themeSK(themeID) // Reuse themeSK
-}
-
 // --- Entry Repository Implementation ---
 // Duplicate implementation removed; see entry_repository.go for actual methods

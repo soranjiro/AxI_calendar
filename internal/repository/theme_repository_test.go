@@ -2,10 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
-	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -187,14 +187,16 @@ func TestDynamoDBThemeRepository_CreateTheme_Success(t *testing.T) {
 	// Expect PutItem for metadata
 	mockDB.On("PutItem", ctx, mock.MatchedBy(func(input *dynamodb.PutItemInput) bool {
 		var meta models.Theme
-		attributevalue.UnmarshalMap(input.Item, &meta)
+		err := attributevalue.UnmarshalMap(input.Item, &meta)
+		assert.NoError(t, err) // Add error check
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(meta.PK, "THEME#") && meta.SK == "METADATA"
 	})).Return(&dynamodb.PutItemOutput{}, nil).Once() // Expect once for metadata
 
 	// Expect PutItem for user link
 	mockDB.On("PutItem", ctx, mock.MatchedBy(func(input *dynamodb.PutItemInput) bool {
 		var link models.UserThemeLink
-		attributevalue.UnmarshalMap(input.Item, &link)
+		err := attributevalue.UnmarshalMap(input.Item, &link)
+		assert.NoError(t, err) // Add error check
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(link.PK, "USER#") && strings.HasPrefix(link.SK, "THEME#")
 	})).Return(&dynamodb.PutItemOutput{}, nil).Once() // Expect once for link
 
@@ -306,7 +308,8 @@ func TestDynamoDBThemeRepository_CreateTheme_DBError_Metadata(t *testing.T) {
 	// Mock PutItem for metadata to return an error
 	mockDB.On("PutItem", ctx, mock.MatchedBy(func(input *dynamodb.PutItemInput) bool {
 		var meta models.Theme
-		attributevalue.UnmarshalMap(input.Item, &meta)
+		err := attributevalue.UnmarshalMap(input.Item, &meta)
+		assert.NoError(t, err) // Add error check
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(meta.PK, "THEME#") && meta.SK == "METADATA"
 	})).Return(nil, dbError).Once()
 
@@ -333,14 +336,16 @@ func TestDynamoDBThemeRepository_CreateTheme_DBError_Link(t *testing.T) {
 	// Mock PutItem for metadata to succeed
 	mockDB.On("PutItem", ctx, mock.MatchedBy(func(input *dynamodb.PutItemInput) bool {
 		var meta models.Theme
-		attributevalue.UnmarshalMap(input.Item, &meta)
+		err := attributevalue.UnmarshalMap(input.Item, &meta)
+		assert.NoError(t, err) // Add error check
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(meta.PK, "THEME#") && meta.SK == "METADATA"
 	})).Return(&dynamodb.PutItemOutput{}, nil).Once()
 
 	// Mock PutItem for user link to return an error
 	mockDB.On("PutItem", ctx, mock.MatchedBy(func(input *dynamodb.PutItemInput) bool {
 		var link models.UserThemeLink
-		attributevalue.UnmarshalMap(input.Item, &link)
+		err := attributevalue.UnmarshalMap(input.Item, &link)
+		assert.NoError(t, err) // Add error check
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(link.PK, "USER#") && strings.HasPrefix(link.SK, "THEME#")
 	})).Return(nil, dbError).Once()
 
