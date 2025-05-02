@@ -166,7 +166,7 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 	}
 
 	// Validate theme exists and user has access
-	theme, err := h.ThemeRepo.GetThemeByID(ctx.Request().Context(), userID, req.ThemeId)
+	theme, err := h.ThemeRepo.GetThemeByID(ctx.Request().Context(), userID, req.ThemeID) // Use req.ThemeID
 	if err != nil {
 		if errors.Is(err, errors.New("theme not found")) || errors.Is(err, errors.New("forbidden")) {
 			return newApiError(http.StatusNotFound, "Theme not found or access denied", err)
@@ -180,8 +180,8 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 	}
 
 	newEntry := models.Entry{
-		EntryID:   uuid.New(), // Generate new ID
-		ThemeID:   req.ThemeId,
+		EntryID:   uuid.New(),  // Generate new ID
+		ThemeID:   req.ThemeID, // Use req.ThemeID
 		UserID:    userID,
 		EntryDate: req.EntryDate.Format("2006-01-02"), // Store as YYYY-MM-DD string
 		Data:      req.Data,

@@ -33,7 +33,7 @@ type CreateEntryRequest struct {
 	// Data Keys should match field names defined in the specified theme.
 	Data      map[string]interface{} `json:"data"`
 	EntryDate openapi_types.Date     `json:"entry_date"`
-	ThemeId   openapi_types.UUID     `json:"theme_id"`
+	ThemeID   openapi_types.UUID     `json:"theme_id"` // Field name ThemeID, tag theme_id
 }
 
 // CreateThemeRequest defines model for CreateThemeRequest.

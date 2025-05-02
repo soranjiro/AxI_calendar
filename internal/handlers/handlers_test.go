@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -250,7 +249,6 @@ func TestApiHandler_PostEntries_ValidationError(t *testing.T) {
 	testThemeID := uuid.New()
 	entryDate := time.Now()
 
-	// Define a theme with a required field "name" of type "text"
 	theme := &models.Theme{
 		ThemeID:   testThemeID,
 		ThemeName: "Test Theme",
@@ -262,24 +260,32 @@ func TestApiHandler_PostEntries_ValidationError(t *testing.T) {
 		UserID:    &testUserID,
 	}
 
-	// Mock GetThemeByID to return the theme
 	mockThemeRepo.On("GetThemeByID", mock.Anything, testUserID, testThemeID).Return(theme, nil)
 
+	// Setup context (gets initial request/recorder)
 	c, _ := setupTestContext(testUserID)
-	// Request body *missing* the required "name" field
-	reqBody := api.CreateEntryRequest{
-		ThemeId:   testThemeID,
+	userCtx := c.Request().Context() // Preserve the user context
+
+	// Create request payload and marshal it
+	requestPayload := api.CreateEntryRequest{
+		ThemeID:   testThemeID,
 		EntryDate: openapi_types.Date{Time: entryDate},
 		Data: map[string]interface{}{
-			"optional_num": 123,
+			"optional_num": 123, // Missing required "name" field
 		},
 	}
-	jsonBody, _ := json.Marshal(reqBody)
-	c.Request().Body = io.NopCloser(strings.NewReader(string(jsonBody)))
-	c.Request().Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	reqBodyBytes, err := json.Marshal(requestPayload)
+	assert.NoError(t, err)
+
+	// Create a *new* request with the body and correct headers
+	newReq := httptest.NewRequest(http.MethodPost, "/entries", bytes.NewReader(reqBodyBytes))
+	newReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+
+	// Set the new request into the context, keeping the user context
+	c.SetRequest(newReq.WithContext(userCtx))
 
 	// Act
-	err := handler.PostEntries(c)
+	err = handler.PostEntries(c)
 
 	// Assert
 	assert.Error(t, err)
@@ -288,8 +294,8 @@ func TestApiHandler_PostEntries_ValidationError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, httpErr.Code)
 	apiErr, ok := httpErr.Message.(api.Error)
 	assert.True(t, ok)
-	assert.Contains(t, apiErr.Message, "missing required field") // Check for part of the expected validation error message
+	assert.Contains(t, apiErr.Message, "required field 'name' is missing")
 
 	mockThemeRepo.AssertExpectations(t)
-	mockEntryRepo.AssertNotCalled(t, "CreateEntry") // CreateEntry should not be called if validation fails
+	mockEntryRepo.AssertNotCalled(t, "CreateEntry")
 }

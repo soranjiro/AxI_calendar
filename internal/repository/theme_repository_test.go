@@ -43,11 +43,20 @@ func TestDynamoDBThemeRepository_GetThemeByID_Success_Default(t *testing.T) {
 	item, _ := attributevalue.MarshalMap(expectedTheme)
 
 	mockDB.On("GetItem", ctx, mock.MatchedBy(func(input *dynamodb.GetItemInput) bool {
-		pk, _ := attributevalue.Marshal(expectedTheme.PK)
-		sk, _ := attributevalue.Marshal(expectedTheme.SK)
+		expectedPK := "THEME#" + testThemeID.String()
+		expectedSK := "METADATA"
+
+		// Ensure input and TableName are not nil before dereferencing
+		if input == nil || input.TableName == nil {
+			return false
+		}
+
+		actualPKAttr, pkOk := input.Key["PK"].(*types.AttributeValueMemberS)
+		actualSKAttr, skOk := input.Key["SK"].(*types.AttributeValueMemberS)
+
 		return *input.TableName == repo.dbClient.TableName &&
-			input.Key["PK"] == pk &&
-			input.Key["SK"] == sk
+			pkOk && actualPKAttr.Value == expectedPK &&
+			skOk && actualSKAttr.Value == expectedSK
 	})).Return(&dynamodb.GetItemOutput{Item: item}, nil)
 
 	theme, err := repo.GetThemeByID(ctx, testUserID, testThemeID)
@@ -222,10 +231,20 @@ func TestDynamoDBThemeRepository_UpdateTheme_Success(t *testing.T) {
 	}
 
 	mockDB.On("UpdateItem", ctx, mock.MatchedBy(func(input *dynamodb.UpdateItemInput) bool {
-		pk, _ := attributevalue.Marshal("THEME#" + testThemeID.String())
-		sk, _ := attributevalue.Marshal("METADATA")
+		expectedPK := "THEME#" + testThemeID.String()
+		expectedSK := "METADATA"
+
+		// Ensure input and TableName are not nil before dereferencing
+		if input == nil || input.TableName == nil || input.UpdateExpression == nil || input.ConditionExpression == nil {
+			return false
+		}
+
+		actualPKAttr, pkOk := input.Key["PK"].(*types.AttributeValueMemberS)
+		actualSKAttr, skOk := input.Key["SK"].(*types.AttributeValueMemberS)
+
 		return *input.TableName == repo.dbClient.TableName &&
-			input.Key["PK"] == pk && input.Key["SK"] == sk &&
+			pkOk && actualPKAttr.Value == expectedPK && // Compare string values
+			skOk && actualSKAttr.Value == expectedSK && // Compare string values
 			*input.UpdateExpression == "SET ThemeName = :name, Fields = :fields, UpdatedAt = :updatedAt" &&
 			*input.ConditionExpression == "attribute_exists(PK) AND attribute_exists(SK)"
 	})).Return(&dynamodb.UpdateItemOutput{}, nil)
@@ -252,18 +271,26 @@ func TestDynamoDBThemeRepository_DeleteTheme_Success(t *testing.T) {
 	mockDB.On("GetItem", ctx, mock.AnythingOfType("*dynamodb.GetItemInput")).Return(&dynamodb.GetItemOutput{Item: item}, nil).Once()
 
 	// Expect DeleteItem for metadata
-	mockDB.On("DeleteItem", ctx, mock.MatchedBy(func(input *dynamodb.DeleteItemInput) bool {
-		pk, _ := attributevalue.Marshal("THEME#" + testThemeID.String())
-		sk, _ := attributevalue.Marshal("METADATA")
-		return *input.TableName == repo.dbClient.TableName && input.Key["PK"] == pk && input.Key["SK"] == sk
-	})).Return(&dynamodb.DeleteItemOutput{}, nil).Once()
+	expectedMetaKey := map[string]types.AttributeValue{
+		"PK": &types.AttributeValueMemberS{Value: "THEME#" + testThemeID.String()},
+		"SK": &types.AttributeValueMemberS{Value: "METADATA"},
+	}
+	expectedMetaInput := &dynamodb.DeleteItemInput{
+		TableName: &repo.dbClient.TableName,
+		Key:       expectedMetaKey,
+	}
+	mockDB.On("DeleteItem", ctx, expectedMetaInput).Return(&dynamodb.DeleteItemOutput{}, nil).Once()
 
 	// Expect DeleteItem for user link
-	mockDB.On("DeleteItem", ctx, mock.MatchedBy(func(input *dynamodb.DeleteItemInput) bool {
-		pk, _ := attributevalue.Marshal(userPK(testUserID.String()))
-		sk, _ := attributevalue.Marshal(themeSK(testThemeID.String()))
-		return *input.TableName == repo.dbClient.TableName && input.Key["PK"] == pk && input.Key["SK"] == sk
-	})).Return(&dynamodb.DeleteItemOutput{}, nil).Once()
+	expectedLinkKey := map[string]types.AttributeValue{
+		"PK": &types.AttributeValueMemberS{Value: userPK(testUserID.String())},
+		"SK": &types.AttributeValueMemberS{Value: themeSK(testThemeID.String())},
+	}
+	expectedLinkInput := &dynamodb.DeleteItemInput{
+		TableName: &repo.dbClient.TableName,
+		Key:       expectedLinkKey,
+	}
+	mockDB.On("DeleteItem", ctx, expectedLinkInput).Return(&dynamodb.DeleteItemOutput{}, nil).Once()
 
 	err := repo.DeleteTheme(ctx, testUserID, testThemeID)
 
