@@ -1,3 +1,8 @@
 axicalendar-api
 
 secret/*
+
+.DS_Store
+
+*.log
+*.out

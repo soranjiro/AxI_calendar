@@ -1,0 +1,7 @@
+# .octocov.yml
+coverage:
+  path: coverage.out # go test で出力されるカバレッジファイルのパス
+  exclude:
+    - '**/*gen.go' # 除外するファイルパターン
+comment:
+  if: is_pull_request # プルリクエストの場合のみコメント

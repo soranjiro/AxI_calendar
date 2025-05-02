@@ -9,7 +9,7 @@ DOCKER_CONTAINER_NAME := dynamodb-local-axicalendar
 OAPI_CODEGEN_CMD := oapi-codegen
 
 # Targets
-.PHONY: all build run clean setup setup-db start-db stop-db create-table delete-table gen help
+.PHONY: all build run clean setup setup-db start-db stop-db create-table delete-table gen lint fmt test test-cover help
 
 all: build
 
@@ -28,6 +28,10 @@ help:
 	@echo "  create-table  Create the DynamoDB table locally (requires DynamoDB running)"
 	@echo "  delete-table  Delete the DynamoDB table locally (requires DynamoDB running)"
 	@echo "  gen           Generate Go code from OpenAPI specification"
+	@echo "  lint          Lint the code"
+	@echo "  fmt           Format the code"
+	@echo "  test          Run tests"
+	@echo "  test-cover    Run tests with coverage"
 	@echo ""
 	@echo "Variables (can be overridden):"
 	@echo "  DYNAMODB_TABLE_NAME (default: $(DYNAMODB_TABLE_NAME))"
@@ -130,3 +134,29 @@ gen:
 	fi
 	$(OAPI_CODEGEN_CMD) -generate types,server -package api -o internal/api/api.gen.go api/openapi.yaml
 	@echo "Code generation complete: internal/api/api.gen.go"
+
+# Lint the code
+lint:
+	@echo "Linting code..."
+	@if ! command -v golangci-lint &> /dev/null; then \
+		echo "Warning: golangci-lint not found. Installing..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	golangci-lint run ./...
+
+# Format the code
+fmt:
+	@echo "Formatting code..."
+	go fmt ./...
+
+# Run tests
+test:
+	@echo "Running tests..."
+	go test -v ./...
+
+# Run tests with coverage
+test-cover:
+	@echo "Running tests with coverage..."
+	go test -v -coverprofile=coverage.out ./...
+	@echo "Calculating coverage..."
+	go tool cover -func=coverage.out

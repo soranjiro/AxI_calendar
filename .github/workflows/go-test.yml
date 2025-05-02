@@ -1,0 +1,51 @@
+name: Go Test and Coverage
+
+on:
+  push:
+    branches: [main] # mainブランチへのpush時に実行
+    paths-ignore:
+      - 'docs/**' # docsディレクトリ内の変更は無視
+  pull_request:
+    branches: [main] # mainブランチへのpull request時に実行
+    paths-ignore:
+      - 'docs/**' # docsディレクトリ内の変更は無視
+
+# PRコメント投稿に必要な権限を追加
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # リポジトリのコードをチェックアウト
+
+      - name: Set up Go
+        uses: actions/setup-go@v5 # Go言語環境をセットアップ
+        with:
+          go-version: "1.21" # プロジェクトで使用しているGoのバージョンに合わせてください
+
+      - name: Install dependencies
+        run: go mod download # 依存関係をダウンロード
+
+      - name: Run tests with coverage
+        run: go test -v -coverprofile=coverage.out ./... # プロジェクト内の全テストを実行し、カバレッジプロファイルを出力
+
+      # octocovをインストールするステップを追加
+      - name: Install octocov
+        run: go install github.com/k1LoW/octocov@latest
+
+      - name: Calculate coverage
+        id: coverage
+        run: |
+          echo "coverage<<EOF" >> $GITHUB_OUTPUT
+          go tool cover -func=coverage.out >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post coverage comment
+        run: |
+          ~/go/bin/octocov --config=.octocov.yml
+        env:
+          OCTOCOV_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERAGE_FILE: coverage.out

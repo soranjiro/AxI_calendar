@@ -13,9 +13,21 @@ const (
 	TableNameEnvVar = "DYNAMODB_TABLE_NAME"
 )
 
+// DynamoDBAPI defines the interface for DynamoDB operations used by repositories.
+// This allows for mocking in tests.
+type DynamoDBAPI interface {
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
+	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+	Scan(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error)
+	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
+}
+
 // DynamoDBClient encapsulates the DynamoDB client and table name.
 type DynamoDBClient struct {
-	Client    *dynamodb.Client
+	Client    DynamoDBAPI // Use the interface type
 	TableName string
 }
 
@@ -39,7 +51,7 @@ func NewDynamoDBClient(ctx context.Context) (*DynamoDBClient, error) {
 
 	log.Printf("DynamoDB client initialized for table: %s", tableName)
 	return &DynamoDBClient{
-		Client:    client,
+		Client:    client, // *dynamodb.Client satisfies the DynamoDBAPI interface
 		TableName: tableName,
 	}, nil
 }
