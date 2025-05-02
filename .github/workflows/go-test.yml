@@ -32,6 +32,10 @@ jobs:
       - name: Run tests with coverage
         run: go test -v -coverprofile=coverage.out ./... # プロジェクト内の全テストを実行し、カバレッジプロファイルを出力
 
+      # octocovをインストールするステップを追加
+      - name: Install octocov
+        run: go install github.com/k1LoW/octocov@latest
+
       - name: Calculate coverage
         id: coverage
         run: |
