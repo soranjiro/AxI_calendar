@@ -1,0 +1,714 @@
+openapi: 3.0.3
+info:
+  title: AxiCalendar API
+  version: 0.1.0
+  description: API definition for the AxiCalendar backend service.
+servers:
+  - url: / # API Gateway stage will prepend the actual base path
+
+paths:
+  /auth/signup:
+    post:
+      summary: Register a new user
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: User successfully registered
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      summary: Log in a user
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized (invalid credentials)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /themes:
+    get:
+      summary: List available themes
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: A list of themes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Theme"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a new custom theme
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateThemeRequest"
+      responses:
+        "201":
+          description: Theme created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Theme"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /themes/{theme_id}:
+    get:
+      summary: Get theme details
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Theme details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Theme"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Theme not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Update a custom theme
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateThemeRequest" # Define this schema
+      responses:
+        "200":
+          description: Theme updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Theme"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (trying to edit default theme or not owner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Theme not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a custom theme
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: theme_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Theme deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (trying to delete default theme or not owner)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Theme not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /entries:
+    get:
+      summary: List entries within a date range
+      tags:
+        - Entries
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD)
+        - name: theme_ids
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of theme IDs to filter by
+      responses:
+        "200":
+          description: A list of entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Entry"
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a new entry
+      tags:
+        - Entries
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEntryRequest"
+      responses:
+        "201":
+          description: Entry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entry"
+        "400":
+          description: Invalid input or validation error based on theme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Theme not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /entries/{entry_id}:
+    get:
+      summary: Get entry details
+      tags:
+        - Entries
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Entry details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entry"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Update an entry
+      tags:
+        - Entries
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEntryRequest" # Define this schema
+      responses:
+        "200":
+          description: Entry updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entry"
+        "400":
+          description: Invalid input or validation error based on theme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Entry or Theme not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete an entry
+      tags:
+        - Entries
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Entry deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    SignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8 # Example constraint
+      required:
+        - email
+        - password
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - email
+        - password
+    LoginResponse:
+      type: object
+      properties:
+        id_token:
+          type: string
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+    ThemeField:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Internal field name (unique within theme, snake_case recommended)
+          pattern: "^[a-z0-9_]+$" # Example pattern
+        label:
+          type: string
+          description: Display label for the field
+        type:
+          type: string
+          enum: [text, date, datetime, number, boolean, textarea, select]
+          description: Data type of the field
+        required:
+          type: boolean
+          default: false
+        # Add type-specific properties like min/max for number, options for select etc.
+        # Example for number:
+        # minimum: <number>
+        # maximum: <number>
+        # Example for select:
+        # options:
+        #   type: array
+        #   items:
+        #     type: string
+      required:
+        - name
+        - label
+        - type
+    Theme:
+      type: object
+      properties:
+        theme_id:
+          type: string
+          format: uuid
+          readOnly: true
+        theme_name:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThemeField"
+        is_default:
+          type: boolean
+          readOnly: true
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true # Only for custom themes, null/absent for default
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - theme_id
+        - theme_name
+        - fields
+        - is_default
+        - created_at
+        - updated_at
+    CreateThemeRequest:
+      type: object
+      properties:
+        theme_name:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThemeField"
+          minItems: 1 # Must have at least one field
+      required:
+        - theme_name
+        - fields
+    UpdateThemeRequest:
+      type: object
+      description: Only theme_name and fields can be updated for custom themes.
+      properties:
+        theme_name:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThemeField"
+          minItems: 1
+      required:
+        - theme_name
+        - fields
+    Entry:
+      type: object
+      properties:
+        entry_id:
+          type: string
+          format: uuid
+          readOnly: true
+        theme_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        entry_date:
+          type: string
+          format: date
+          description: The primary date for this entry on the calendar
+        data:
+          type: object
+          description: Key-value pairs based on the theme's fields definition
+          additionalProperties: true # Allows any properties initially, validation happens in handler
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - entry_id
+        - theme_id
+        - user_id
+        - entry_date
+        - data
+        - created_at
+        - updated_at
+    CreateEntryRequest:
+      type: object
+      properties:
+        theme_id:
+          type: string
+          format: uuid
+        entry_date:
+          type: string
+          format: date
+        data:
+          type: object
+          additionalProperties: true
+          description: Keys should match field names defined in the specified theme.
+      required:
+        - theme_id
+        - entry_date
+        - data
+    UpdateEntryRequest:
+      type: object
+      properties:
+        # theme_id cannot be changed after creation
+        entry_date:
+          type: string
+          format: date
+        data:
+          type: object
+          additionalProperties: true
+          description: Keys should match field names defined in the theme.
+      required:
+        - entry_date
+        - data
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authentication via Cognito JWT ID Token passed in Authorization header.
+      # For actual deployment, consider using openIdConnect with the correct URL
+      # type: openIdConnect
+      # openIdConnectUrl: https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/openid-configuration
