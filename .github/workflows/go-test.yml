@@ -3,8 +3,12 @@ name: Go Test and Coverage
 on:
   push:
     branches: [main] # mainブランチへのpush時に実行
+    paths-ignore:
+      - 'docs/**' # docsディレクトリ内の変更は無視
   pull_request:
     branches: [main] # mainブランチへのpull request時に実行
+    paths-ignore:
+      - 'docs/**' # docsディレクトリ内の変更は無視
 
 # PRコメント投稿に必要な権限を追加
 permissions:
