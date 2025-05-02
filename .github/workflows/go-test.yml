@@ -1,0 +1,35 @@
+name: Go Test and Coverage
+
+on:
+  push:
+    branches: [main] # mainブランチへのpush時に実行
+  pull_request:
+    branches: [main] # mainブランチへのpull request時に実行
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # リポジトリのコードをチェックアウト
+
+      - name: Set up Go
+        uses: actions/setup-go@v5 # Go言語環境をセットアップ
+        with:
+          go-version: "1.21" # プロジェクトで使用しているGoのバージョンに合わせてください
+
+      - name: Install dependencies
+        run: go mod download # 依存関係をダウンロード
+
+      - name: Run tests with coverage
+        run: go test -v -coverprofile=coverage.out ./... # プロジェクト内の全テストを実行し、カバレッジプロファイルを出力
+
+      - name: Calculate and display coverage
+        run: go tool cover -func=coverage.out # カバレッジプロファイルから関数ごとのカバレッジを計算して表示
+
+      # オプション: カバレッジプロファイルをアーティファクトとしてアップロード
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          if-no-files-found: error # ファイルが見つからない場合にエラーにする

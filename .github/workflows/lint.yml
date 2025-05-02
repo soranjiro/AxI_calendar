@@ -1,0 +1,48 @@
+name: Go Test, Lint, and Coverage
+
+on:
+  push:
+    branches: [ main ] # mainブランチへのpush時に実行
+  pull_request:
+    branches: [ main ] # mainブランチへのpull request時に実行
+
+jobs:
+  test-lint-cover: # ジョブ名を変更して内容を反映
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4 # リポジトリのコードをチェックアウト
+
+    - name: Set up Go
+      uses: actions/setup-go@v5 # Go言語環境をセットアップ
+      with:
+        go-version: '1.21' # プロジェクトで使用しているGoのバージョンに合わせてください
+        cache: false # golangci-lint-action がキャッシュを管理するため無効化
+
+    - name: Install dependencies
+      run: go mod download # 依存関係をダウンロード
+
+    - name: Lint code
+      uses: golangci/golangci-lint-action@v6 # golangci-lint を実行するアクション
+      with:
+        # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
+        version: latest
+        # Optional: working directory, useful for monorepos
+        # working-directory: somedir
+        # Optional: golangci-lint command line arguments.
+        # args: --issues-exit-code=0 # Example: Don't fail workflow on issues
+        # Optional: show only new issues if it's a pull request. The default value is true.
+        # only-new-issues: true
+
+    - name: Run tests with coverage
+      run: go test -v -coverprofile=coverage.out ./... # プロジェクト内の全テストを実行し、カバレッジプロファイルを出力
+
+    - name: Calculate and display coverage
+      run: go tool cover -func=coverage.out # カバレッジプロファイルから関数ごとのカバレッジを計算して表示
+
+    # オプション: カバレッジプロファイルをアーティファクトとしてアップロード
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.out
+        if-no-files-found: error # ファイルが見つからない場合にエラーにする
