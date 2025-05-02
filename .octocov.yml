@@ -1,0 +1,5 @@
+# .octocov.yml
+coverage:
+  path: coverage.out # go test で出力されるカバレッジファイルのパス
+comment:
+  if: is_pull_request # プルリクエストの場合のみコメント

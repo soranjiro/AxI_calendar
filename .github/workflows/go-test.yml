@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main] # mainブランチへのpull request時に実行
 
+# PRコメント投稿に必要な権限を追加
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,6 +28,10 @@ jobs:
       - name: Run tests with coverage
         run: go test -v -coverprofile=coverage.out ./... # プロジェクト内の全テストを実行し、カバレッジプロファイルを出力
 
+      # octocovをインストールするステップを追加
+      - name: Install octocov
+        run: go install github.com/k1LoW/octocov@latest
+
       - name: Calculate coverage
         id: coverage
         run: |
@@ -30,16 +39,9 @@ jobs:
           go tool cover -func=coverage.out >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Post coverage comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `${{ steps.coverage.outputs.coverage }}`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## Test Coverage\n\n\`\`\`\n${output}\n\`\`\``
-            });
+      - name: Post coverage comment
+        run: |
+          ~/go/bin/octocov --config=.octocov.yml
+        env:
+          OCTOCOV_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERAGE_FILE: coverage.out
