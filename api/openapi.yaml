@@ -21,6 +21,7 @@ paths:
                 $ref: "#/components/schemas/HealthCheckResponse"
         "500":
           $ref: "#/components/responses/InternalServerError"
+
   /auth/signup:
     post:
       summary: Register a new user
@@ -233,12 +234,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       responses:
         "200":
           description: Theme details
@@ -259,12 +255,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       requestBody:
         required: true
         content:
@@ -295,12 +286,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       responses:
         "204":
           description: Theme deleted successfully
@@ -321,18 +307,8 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: feature_name
-          in: path
-          required: true
-          schema:
-            type: string
-          description: The identifier of the feature to execute (e.g., 'monthly_summary'). Must be listed in the theme's supported_features.
+        - $ref: "#/components/parameters/ThemeIdParam"
+        - $ref: "#/components/parameters/FeatureNameParam"
       responses:
         "200":
           description: Feature execution result
@@ -430,12 +406,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       responses:
         "200":
           description: Entry details
@@ -456,12 +427,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       requestBody:
         required: true
         content:
@@ -490,12 +456,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       responses:
         "204":
           description: Entry deleted successfully
@@ -780,6 +741,31 @@ components:
           type: string
       required:
         - message
+
+  parameters:
+    ThemeIdParam:
+      name: theme_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of the theme
+    FeatureNameParam:
+      name: feature_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: The identifier of the feature to execute (e.g., 'monthly_summary'). Must be listed in the theme's supported_features.
+    EntryIdParam:
+      name: entry_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of the entry
 
   responses:
     BadRequest:

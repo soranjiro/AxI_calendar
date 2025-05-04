@@ -165,6 +165,15 @@ type User struct {
 	UserId *openapi_types.UUID  `json:"user_id,omitempty"`
 }
 
+// EntryIdParam defines model for EntryIdParam.
+type EntryIdParam = openapi_types.UUID
+
+// FeatureNameParam defines model for FeatureNameParam.
+type FeatureNameParam = string
+
+// ThemeIdParam defines model for ThemeIdParam.
+type ThemeIdParam = openapi_types.UUID
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
@@ -256,13 +265,13 @@ type ServerInterface interface {
 	PostEntries(ctx echo.Context) error
 	// Delete an entry
 	// (DELETE /entries/{entry_id})
-	DeleteEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error
+	DeleteEntriesEntryId(ctx echo.Context, entryId EntryIdParam) error
 	// Get entry details
 	// (GET /entries/{entry_id})
-	GetEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error
+	GetEntriesEntryId(ctx echo.Context, entryId EntryIdParam) error
 	// Update an entry
 	// (PUT /entries/{entry_id})
-	PutEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error
+	PutEntriesEntryId(ctx echo.Context, entryId EntryIdParam) error
 	// Health check endpoint
 	// (GET /health)
 	GetHealth(ctx echo.Context) error
@@ -274,16 +283,16 @@ type ServerInterface interface {
 	PostThemes(ctx echo.Context) error
 	// Delete a custom theme
 	// (DELETE /themes/{theme_id})
-	DeleteThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error
+	DeleteThemesThemeId(ctx echo.Context, themeId ThemeIdParam) error
 	// Get theme details
 	// (GET /themes/{theme_id})
-	GetThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error
+	GetThemesThemeId(ctx echo.Context, themeId ThemeIdParam) error
 	// Update a custom theme
 	// (PUT /themes/{theme_id})
-	PutThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error
+	PutThemesThemeId(ctx echo.Context, themeId ThemeIdParam) error
 	// Execute a specific feature for a theme (e.g., aggregation)
 	// (GET /themes/{theme_id}/features/{feature_name})
-	GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error
+	GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId ThemeIdParam, featureName FeatureNameParam) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -416,7 +425,7 @@ func (w *ServerInterfaceWrapper) PostEntries(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) DeleteEntriesEntryId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "entry_id" -------------
-	var entryId openapi_types.UUID
+	var entryId EntryIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "entry_id", runtime.ParamLocationPath, ctx.Param("entry_id"), &entryId)
 	if err != nil {
@@ -434,7 +443,7 @@ func (w *ServerInterfaceWrapper) DeleteEntriesEntryId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetEntriesEntryId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "entry_id" -------------
-	var entryId openapi_types.UUID
+	var entryId EntryIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "entry_id", runtime.ParamLocationPath, ctx.Param("entry_id"), &entryId)
 	if err != nil {
@@ -452,7 +461,7 @@ func (w *ServerInterfaceWrapper) GetEntriesEntryId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PutEntriesEntryId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "entry_id" -------------
-	var entryId openapi_types.UUID
+	var entryId EntryIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "entry_id", runtime.ParamLocationPath, ctx.Param("entry_id"), &entryId)
 	if err != nil {
@@ -501,7 +510,7 @@ func (w *ServerInterfaceWrapper) PostThemes(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) DeleteThemesThemeId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
-	var themeId openapi_types.UUID
+	var themeId ThemeIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "theme_id", runtime.ParamLocationPath, ctx.Param("theme_id"), &themeId)
 	if err != nil {
@@ -519,7 +528,7 @@ func (w *ServerInterfaceWrapper) DeleteThemesThemeId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetThemesThemeId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
-	var themeId openapi_types.UUID
+	var themeId ThemeIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "theme_id", runtime.ParamLocationPath, ctx.Param("theme_id"), &themeId)
 	if err != nil {
@@ -537,7 +546,7 @@ func (w *ServerInterfaceWrapper) GetThemesThemeId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PutThemesThemeId(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
-	var themeId openapi_types.UUID
+	var themeId ThemeIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "theme_id", runtime.ParamLocationPath, ctx.Param("theme_id"), &themeId)
 	if err != nil {
@@ -555,7 +564,7 @@ func (w *ServerInterfaceWrapper) PutThemesThemeId(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
-	var themeId openapi_types.UUID
+	var themeId ThemeIdParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "theme_id", runtime.ParamLocationPath, ctx.Param("theme_id"), &themeId)
 	if err != nil {
@@ -563,7 +572,7 @@ func (w *ServerInterfaceWrapper) GetThemesThemeIdFeaturesFeatureName(ctx echo.Co
 	}
 
 	// ------------- Path parameter "feature_name" -------------
-	var featureName string
+	var featureName FeatureNameParam
 
 	err = runtime.BindStyledParameterWithLocation("simple", false, "feature_name", runtime.ParamLocationPath, ctx.Param("feature_name"), &featureName)
 	if err != nil {
