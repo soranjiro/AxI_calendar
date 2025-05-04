@@ -132,7 +132,7 @@ func IsValidFieldName(name string) bool {
 // ValidateSupportedFeatures performs basic validation on supported feature names.
 func ValidateSupportedFeatures(features []string) error {
 	// Allow empty or nil features list
-	if features == nil || len(features) == 0 {
+	if len(features) == 0 {
 		return nil
 	}
 
