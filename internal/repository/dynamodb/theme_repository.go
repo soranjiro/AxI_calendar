@@ -115,12 +115,11 @@ func (r *dynamoDBThemeRepository) CreateTheme(ctx context.Context, inputTheme *t
 	}
 	// User link item
 	link := theme.UserThemeLink{
-		PK:        userPK(inputTheme.OwnerUserID.String()),
-		SK:        userThemeLinkSK(inputTheme.ThemeID.String()),
-		UserID:    *inputTheme.OwnerUserID,
-		ThemeID:   inputTheme.ThemeID,
-		ThemeName: inputTheme.ThemeName,
-		CreatedAt: now,
+		PK:      userPK(inputTheme.OwnerUserID.String()),
+		SK:      userThemeLinkSK(inputTheme.ThemeID.String()),
+		UserID:  *inputTheme.OwnerUserID,
+		ThemeID: inputTheme.ThemeID,
+		// ThemeName and CreatedAt are not part of UserThemeLink struct
 	}
 	linkAV, err := attributevalue.MarshalMap(link)
 	if err != nil {

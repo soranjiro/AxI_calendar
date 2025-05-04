@@ -9,57 +9,41 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/api"
+	"github.com/soranjiro/axicalendar/internal/api" // Keep for error type
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
-	"github.com/soranjiro/axicalendar/internal/validation" // Import validation package
+	// "github.com/soranjiro/axicalendar/internal/validation" // Validation moved to domain
 )
 
 // CreateTheme handles the logic for creating a new theme.
-func (uc *UseCase) CreateTheme(ctx context.Context, userID uuid.UUID, req api.CreateThemeRequest) (*api.Theme, error) {
-	// 1. Validate theme fields definition using validation package
-	if err := validation.ValidateApiThemeFields(req.Fields); err != nil {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Theme fields validation failed: %v", err)})
+// Accepts domain theme, returns domain theme
+func (uc *UseCase) CreateTheme(ctx context.Context, newTheme theme.Theme) (*theme.Theme, error) {
+	// 1. Validate the domain theme object itself
+	if err := newTheme.Validate(); err != nil {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Theme validation failed: %v", err)})
 	}
 
-	// 2. Validate supported features (basic validation) using validation package
-	if req.SupportedFeatures != nil {
-		if err := validation.ValidateSupportedFeatures(*req.SupportedFeatures); err != nil {
-			return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Supported features validation failed: %v", err)})
-		}
+	// 2. Ensure OwnerUserID is set (should be set by converter/handler)
+	if newTheme.OwnerUserID == nil || *newTheme.OwnerUserID == uuid.Nil {
+		log.Printf("ERROR: CreateTheme called with nil or zero OwnerUserID for theme %s", newTheme.ThemeName)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Internal error: User ID missing for theme creation"})
+	}
+	userID := *newTheme.OwnerUserID
+
+	// 3. Ensure ThemeID is set (should be set by converter/handler)
+	if newTheme.ThemeID == uuid.Nil {
+		newTheme.ThemeID = uuid.New()
 	}
 
-	// 3. Convert API fields to domain fields
-	modelFields := make([]theme.ThemeField, len(req.Fields))
-	for i, f := range req.Fields {
-		modelFields[i] = theme.FromApiThemeField(f)
-	}
+	// 4. Ensure IsDefault is false for user-created themes
+	newTheme.IsDefault = false
 
-	// 4. Handle supported features (default to empty list if nil)
-	var supportedFeatures []string
-	if req.SupportedFeatures != nil {
-		supportedFeatures = *req.SupportedFeatures
-	} else {
-		supportedFeatures = []string{}
-	}
-
-	// 5. Create domain theme object
-	newTheme := theme.Theme{
-		ThemeID:           uuid.New(), // Generate new ID
-		ThemeName:         req.ThemeName,
-		Fields:            modelFields,
-		IsDefault:         false, // User-created themes are not default
-		OwnerUserID:       &userID,
-		SupportedFeatures: supportedFeatures,
-		// CreatedAt, UpdatedAt, PK, SK set by repository
-	}
-
-	// 6. Call repository to create theme
+	// 5. Call repository to create theme
 	if err := uc.themeRepo.CreateTheme(ctx, &newTheme); err != nil {
 		log.Printf("Error creating theme in repository for user %s: %v", userID, err)
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to create theme"})
 	}
 
-	// 7. Fetch the created theme to return the full object (optional but good practice)
+	// 6. Fetch the created theme to return the full object with timestamps
 	createdTheme, err := uc.themeRepo.GetThemeByID(ctx, userID, newTheme.ThemeID)
 	if err != nil {
 		// Log the inconsistency, but return the data we have as a fallback
@@ -68,11 +52,9 @@ func (uc *UseCase) CreateTheme(ctx context.Context, userID uuid.UUID, req api.Cr
 		now := time.Now()
 		newTheme.CreatedAt = now
 		newTheme.UpdatedAt = now
-		apiTheme := theme.ToApiTheme(newTheme)
-		return &apiTheme, nil // Return success even if fetch failed, but with approximated data
+		return &newTheme, nil // Return success even if fetch failed, but with approximated data
 	}
 
-	// 8. Convert to API model and return
-	apiTheme := theme.ToApiTheme(*createdTheme)
-	return &apiTheme, nil
+	// 7. Return the fetched domain theme
+	return createdTheme, nil
 }

@@ -1,12 +1,13 @@
 package entry
 
 import (
+	"context"
+	"fmt"
 	"time"
 
-	"github.com/soranjiro/axicalendar/internal/api" // Assuming api.gen.go is in internal/api
+	"github.com/soranjiro/axicalendar/internal/domain/theme" // For validation
 
 	"github.com/google/uuid"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Entry represents a single calendar entry.
@@ -26,55 +27,92 @@ type Entry struct {
 	GSI1SK string `dynamodbav:"GSI1SK"` // ENTRY_DATE#<entry_date>#<theme_id>#<entry_id> (Updated based on design doc GSI-1)
 }
 
-// ToApiEntry converts internal Entry to API Entry
-func ToApiEntry(me Entry) api.Entry {
-	entryID := me.EntryID // Copy UUID
-	themeID := me.ThemeID // Copy UUID
-	userID := me.UserID   // Copy UUID
-	createdAt := me.CreatedAt
-	updatedAt := me.UpdatedAt
-
-	// Convert YYYY-MM-DD string back to openapi_types.Date
-	entryDateTime, _ := time.Parse("2006-01-02", me.EntryDate) // Handle error appropriately in real code
-	apiEntryDate := openapi_types.Date{Time: entryDateTime}
-
-	return api.Entry{
-		CreatedAt: &createdAt,
-		Data:      me.Data,
-		EntryDate: apiEntryDate,
-		EntryId:   &entryID, // Assign pointer to UUID
-		ThemeId:   themeID,  // Not a pointer in API spec
-		UpdatedAt: &updatedAt,
-		UserId:    &userID, // Assign pointer to UUID
+// ValidateDataAgainstTheme checks if the entry's data matches the theme's field definitions.
+func (e *Entry) ValidateDataAgainstTheme(fields []theme.ThemeField) error {
+	definedFields := make(map[string]theme.ThemeField)
+	for _, f := range fields {
+		definedFields[f.Name] = f
 	}
-}
 
-// FromApiEntry converts API Entry to internal Entry (partial conversion, might need adjustments)
-func FromApiEntry(ae api.Entry) Entry {
-	// Note: PK, SK, GSI keys are not present in api.Entry and need to be constructed elsewhere.
-	// UserID might be nil in the API response, handle appropriately.
-	var userID uuid.UUID
-	if ae.UserId != nil {
-		userID = *ae.UserId
+	// Check required fields are present and not empty
+	for _, field := range fields {
+		if field.Required {
+			val, exists := e.Data[field.Name]
+			if !exists {
+				return fmt.Errorf("required field '%s' is missing", field.Name)
+			}
+			if val == nil {
+				return fmt.Errorf("required field '%s' cannot be null", field.Name)
+			}
+			// Add more specific checks based on type if needed (e.g., empty string)
+			if field.Type == theme.FieldTypeText || field.Type == theme.FieldTypeTextarea || field.Type == theme.FieldTypeSelect {
+				if strVal, ok := val.(string); !ok || strVal == "" {
+					return fmt.Errorf("required field '%s' cannot be empty", field.Name)
+				}
+			}
+		}
 	}
-	return Entry{
-		EntryID:   *ae.EntryId, // Assuming EntryId is never nil in contexts where this is called
-		ThemeID:   ae.ThemeId,
-		UserID:    userID,
-		EntryDate: ae.EntryDate.Format("2006-01-02"),
-		Data:      ae.Data,
-		// CreatedAt and UpdatedAt might be nil in API request, handle appropriately.
-		// CreatedAt: *ae.CreatedAt,
-		// UpdatedAt: *ae.UpdatedAt,
+
+	// Check types of provided data and presence of undefined fields
+	for key, value := range e.Data {
+		fieldDef, exists := definedFields[key]
+		if !exists {
+			return fmt.Errorf("field '%s' is not defined in the theme", key)
+		}
+
+		// Skip type validation if value is nil (unless required, checked above)
+		if value == nil {
+			continue
+		}
+
+		// Type validation logic
+		switch fieldDef.Type {
+		case theme.FieldTypeText, theme.FieldTypeTextarea, theme.FieldTypeSelect:
+			if _, ok := value.(string); !ok {
+				return fmt.Errorf("field '%s' expects a string, got %T", key, value)
+			}
+		case theme.FieldTypeNumber:
+			// Allow int or float64 from JSON unmarshalling
+			switch value.(type) {
+			case float64, int, int32, int64:
+				// OK
+			default:
+				return fmt.Errorf("field '%s' expects a number, got %T", key, value)
+			}
+		case theme.FieldTypeBoolean:
+			if _, ok := value.(bool); !ok {
+				return fmt.Errorf("field '%s' expects a boolean, got %T", key, value)
+			}
+		case theme.FieldTypeDate:
+			valStr, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("field '%s' expects a date string (YYYY-MM-DD), got %T", key, value)
+			}
+			if _, err := time.Parse("2006-01-02", valStr); err != nil {
+				return fmt.Errorf("field '%s' has invalid date format: %v. Expected YYYY-MM-DD", key, err)
+			}
+		case theme.FieldTypeDateTime:
+			valStr, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("field '%s' expects a datetime string (RFC3339), got %T", key, value)
+			}
+			if _, err := time.Parse(time.RFC3339, valStr); err != nil {
+				return fmt.Errorf("field '%s' has invalid datetime format: %v. Expected RFC3339", key, err)
+			}
+		default:
+			return fmt.Errorf("internal error: unknown field type '%s' for field '%s'", fieldDef.Type, key)
+		}
 	}
+
+	return nil
 }
 
 // EntryRepository defines the interface for entry data persistence.
 type Repository interface {
 	// Define methods for entry CRUD operations, e.g.:
-	// GetEntryByID(ctx context.Context, userID, entryID uuid.UUID) (*Entry, error)
-	// ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string, themeIDs []uuid.UUID) ([]Entry, error)
-	// CreateEntry(ctx context.Context, entry *Entry) error
-	// UpdateEntry(ctx context.Context, entry *Entry) error
-	// DeleteEntry(ctx context.Context, userID, entryID uuid.UUID) error
+	GetEntryByID(ctx context.Context, userID, entryID uuid.UUID) (*Entry, error)
+	ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string, themeIDs []uuid.UUID) ([]Entry, error)
+	CreateEntry(ctx context.Context, entry *Entry) error
+	UpdateEntry(ctx context.Context, entry *Entry) error
+	DeleteEntry(ctx context.Context, userID, entryID uuid.UUID) error
 }

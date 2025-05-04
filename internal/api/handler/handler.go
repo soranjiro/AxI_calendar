@@ -108,19 +108,21 @@ func (h *ApiHandler) GetAuthMe(ctx echo.Context) error {
 		return err // Already formatted echo.HTTPError
 	}
 
-	user, err := h.useCase.GetAuthMe(ctx.Request().Context(), userID) // Call method on useCase
+	// Call use case which returns domain user
+	domainUser, err := h.useCase.GetAuthMe(ctx.Request().Context(), userID)
 	if err != nil {
-		// Check if the error is already an echo.HTTPError from the use case
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly
 		}
-		// Otherwise, wrap it as a generic internal server error
 		return newApiError(http.StatusInternalServerError, "Failed to get user details", err)
 	}
 
+	// Convert domain user to API user
+	apiUser := ToApiUser(*domainUser) // Use converter
+
 	log.Printf("GetAuthMe called for UserID: %s", userID.String())
-	return ctx.JSON(http.StatusOK, *user) // Dereference pointer from use case
+	return ctx.JSON(http.StatusOK, apiUser)
 }
 
 // PostAuthConfirmForgotPassword handles the confirmation of a password reset.
@@ -176,8 +178,8 @@ func (h *ApiHandler) GetEntries(ctx echo.Context, params api.GetEntriesParams) e
 		return err // Error already formatted
 	}
 
-	// Call the use case method
-	entries, err := h.useCase.GetEntries(ctx.Request().Context(), userID, params)
+	// Call the use case method, which returns domain entries
+	domainEntries, err := h.useCase.GetEntries(ctx.Request().Context(), userID, params)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -186,8 +188,14 @@ func (h *ApiHandler) GetEntries(ctx echo.Context, params api.GetEntriesParams) e
 		return newApiError(http.StatusInternalServerError, "Failed to retrieve entries", err)
 	}
 
-	// Use case now returns []api.Entry directly
-	return ctx.JSON(http.StatusOK, entries)
+	// Convert domain entries to API entries
+	apiEntries, err := ToApiEntries(domainEntries) // Use converter
+	if err != nil {
+		log.Printf("Error converting domain entries to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format entries response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiEntries)
 }
 
 func (h *ApiHandler) PostEntries(ctx echo.Context) error {
@@ -196,13 +204,19 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 		return err
 	}
 
-	var req api.CreateEntryRequest
-	if err := ctx.Bind(&req); err != nil {
+	var apiReq api.CreateEntryRequest
+	if err := ctx.Bind(&apiReq); err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid request body", err)
 	}
 
-	// Call the use case method
-	createdEntry, err := h.useCase.CreateEntry(ctx.Request().Context(), userID, req)
+	// Convert API request to domain entry
+	domainEntry, err := FromApiCreateEntryRequest(apiReq, userID) // Use converter
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid entry data format", err)
+	}
+
+	// Call the use case method with domain entry
+	createdDomainEntry, err := h.useCase.CreateEntry(ctx.Request().Context(), domainEntry)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -211,8 +225,14 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 		return newApiError(http.StatusInternalServerError, "Failed to create entry", err)
 	}
 
-	// Use case returns *api.Entry
-	return ctx.JSON(http.StatusCreated, *createdEntry)
+	// Convert created domain entry back to API entry
+	apiEntry, err := ToApiEntry(*createdDomainEntry) // Use converter
+	if err != nil {
+		log.Printf("Error converting created domain entry to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format created entry response", err)
+	}
+
+	return ctx.JSON(http.StatusCreated, apiEntry)
 }
 
 func (h *ApiHandler) DeleteEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error {
@@ -221,15 +241,13 @@ func (h *ApiHandler) DeleteEntriesEntryId(ctx echo.Context, entryId openapi_type
 		return err
 	}
 
-	// Call the use case method
+	// Call the use case method (no conversion needed for IDs)
 	err = h.useCase.DeleteEntry(ctx.Request().Context(), userID, entryId)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly from use case
 		}
-		// Check for specific domain errors if needed, otherwise generic
-		// Note: Use case now returns echo.HTTPError directly for known cases like 404
 		return newApiError(http.StatusInternalServerError, "Failed to delete entry", err)
 	}
 
@@ -242,19 +260,24 @@ func (h *ApiHandler) GetEntriesEntryId(ctx echo.Context, entryId openapi_types.U
 		return err
 	}
 
-	// Call the use case method
-	entry, err := h.useCase.GetEntryByID(ctx.Request().Context(), userID, entryId)
+	// Call the use case method, returns domain entry
+	domainEntry, err := h.useCase.GetEntryByID(ctx.Request().Context(), userID, entryId)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly from use case
 		}
-		// Note: Use case now returns echo.HTTPError directly for known cases like 404
 		return newApiError(http.StatusInternalServerError, "Failed to retrieve entry", err)
 	}
 
-	// Use case returns *api.Entry
-	return ctx.JSON(http.StatusOK, *entry)
+	// Convert domain entry to API entry
+	apiEntry, err := ToApiEntry(*domainEntry) // Use converter
+	if err != nil {
+		log.Printf("Error converting domain entry to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format entry response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiEntry)
 }
 
 func (h *ApiHandler) PutEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error {
@@ -263,24 +286,28 @@ func (h *ApiHandler) PutEntriesEntryId(ctx echo.Context, entryId openapi_types.U
 		return err
 	}
 
-	var req api.UpdateEntryRequest
-	if err := ctx.Bind(&req); err != nil {
+	var apiReq api.UpdateEntryRequest
+	if err := ctx.Bind(&apiReq); err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid request body", err)
 	}
 
-	// Call the use case method
-	updatedEntry, err := h.useCase.UpdateEntry(ctx.Request().Context(), userID, entryId, req)
+	updatedDomainEntry, err := h.useCase.UpdateEntry(ctx.Request().Context(), userID, entryId, apiReq)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly from use case
 		}
-		// Note: Use case now returns echo.HTTPError directly for known cases like 400, 404
 		return newApiError(http.StatusInternalServerError, "Failed to update entry", err)
 	}
 
-	// Use case returns *api.Entry
-	return ctx.JSON(http.StatusOK, *updatedEntry)
+	// Convert updated domain entry back to API entry
+	apiEntry, err := ToApiEntry(*updatedDomainEntry) // Use converter
+	if err != nil {
+		log.Printf("Error converting updated domain entry to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format updated entry response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiEntry)
 }
 
 // --- Theme Handlers ---
@@ -291,8 +318,8 @@ func (h *ApiHandler) GetThemes(ctx echo.Context) error {
 		return err
 	}
 
-	// Call the use case method
-	themes, err := h.useCase.GetThemes(ctx.Request().Context(), userID)
+	// Call the use case method, returns domain themes
+	domainThemes, err := h.useCase.GetThemes(ctx.Request().Context(), userID)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -301,8 +328,14 @@ func (h *ApiHandler) GetThemes(ctx echo.Context) error {
 		return newApiError(http.StatusInternalServerError, "Failed to retrieve themes", err)
 	}
 
-	// Use case returns []api.Theme
-	return ctx.JSON(http.StatusOK, themes)
+	// Convert domain themes to API themes
+	apiThemes, err := ToApiThemes(domainThemes) // Use converter
+	if err != nil {
+		log.Printf("Error converting domain themes to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format themes response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiThemes)
 }
 
 func (h *ApiHandler) PostThemes(ctx echo.Context) error {
@@ -311,24 +344,35 @@ func (h *ApiHandler) PostThemes(ctx echo.Context) error {
 		return err
 	}
 
-	var req api.CreateThemeRequest
-	if err := ctx.Bind(&req); err != nil {
+	var apiReq api.CreateThemeRequest
+	if err := ctx.Bind(&apiReq); err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid request body", err)
 	}
 
-	// Call the use case method
-	createdTheme, err := h.useCase.CreateTheme(ctx.Request().Context(), userID, req)
+	// Convert API request to domain theme
+	domainTheme, err := FromApiCreateThemeRequest(apiReq, userID) // Use converter
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid theme data format", err)
+	}
+
+	// Call the use case method with domain theme
+	createdDomainTheme, err := h.useCase.CreateTheme(ctx.Request().Context(), domainTheme)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly from use case
 		}
-		// Note: Use case now returns echo.HTTPError directly for known cases like 400
 		return newApiError(http.StatusInternalServerError, "Failed to create theme", err)
 	}
 
-	// Use case returns *api.Theme
-	return ctx.JSON(http.StatusCreated, *createdTheme)
+	// Convert created domain theme back to API theme
+	apiTheme, err := ToApiTheme(*createdDomainTheme) // Use converter
+	if err != nil {
+		log.Printf("Error converting created domain theme to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format created theme response", err)
+	}
+
+	return ctx.JSON(http.StatusCreated, apiTheme)
 }
 
 func (h *ApiHandler) DeleteThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error {
@@ -337,7 +381,7 @@ func (h *ApiHandler) DeleteThemesThemeId(ctx echo.Context, themeId openapi_types
 		return err
 	}
 
-	// Call the use case method
+	// Call the use case method (no conversion needed for IDs)
 	err = h.useCase.DeleteTheme(ctx.Request().Context(), userID, themeId)
 	if err != nil {
 		var httpErr *echo.HTTPError
@@ -356,8 +400,8 @@ func (h *ApiHandler) GetThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 		return err
 	}
 
-	// Call the use case method
-	theme, err := h.useCase.GetThemeByID(ctx.Request().Context(), userID, themeId)
+	// Call the use case method, returns domain theme
+	domainTheme, err := h.useCase.GetThemeByID(ctx.Request().Context(), userID, themeId)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -366,8 +410,14 @@ func (h *ApiHandler) GetThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 		return newApiError(http.StatusInternalServerError, "Failed to retrieve theme", err)
 	}
 
-	// Use case returns *api.Theme
-	return ctx.JSON(http.StatusOK, *theme)
+	// Convert domain theme to API theme
+	apiTheme, err := ToApiTheme(*domainTheme) // Use converter
+	if err != nil {
+		log.Printf("Error converting domain theme to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format theme response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
 func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error {
@@ -376,13 +426,37 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 		return err
 	}
 
-	var req api.UpdateThemeRequest
-	if err := ctx.Bind(&req); err != nil {
+	var apiReq api.UpdateThemeRequest
+	if err := ctx.Bind(&apiReq); err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid request body", err)
 	}
 
-	// Call the use case method
-	updatedTheme, err := h.useCase.UpdateTheme(ctx.Request().Context(), userID, themeId, req)
+	// 1. Get existing theme (needed for conversion and validation)
+	existingDomainTheme, err := h.useCase.GetThemeByID(ctx.Request().Context(), userID, themeId)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			// If GetThemeByID returns 404, the theme doesn't exist or isn't accessible
+			if httpErr.Code == http.StatusNotFound {
+				return newApiError(http.StatusNotFound, "Theme not found or access denied", nil)
+			}
+			return httpErr // Return other errors from GetThemeByID
+		}
+		return newApiError(http.StatusInternalServerError, "Failed to retrieve theme before update", err)
+	}
+	// Check if it's a default theme (cannot be modified)
+	if existingDomainTheme.IsDefault {
+		return newApiError(http.StatusForbidden, "Cannot modify a default theme", nil)
+	}
+
+	// 2. Convert API request to domain theme using the existing theme data
+	domainThemeUpdate, err := FromApiUpdateThemeRequest(apiReq, themeId, userID, *existingDomainTheme)
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid theme data format", err)
+	}
+
+	// 3. Call use case with the converted domain theme object
+	updatedDomainTheme, err := h.useCase.UpdateTheme(ctx.Request().Context(), userID, themeId, domainThemeUpdate) // Pass domain object
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -391,8 +465,14 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 		return newApiError(http.StatusInternalServerError, "Failed to update theme", err)
 	}
 
-	// Use case returns *api.Theme
-	return ctx.JSON(http.StatusOK, *updatedTheme)
+	// Convert updated domain theme back to API theme
+	apiTheme, err := ToApiTheme(*updatedDomainTheme) // Use converter
+	if err != nil {
+		log.Printf("Error converting updated domain theme to API format: %v", err)
+		return newApiError(http.StatusInternalServerError, "Failed to format updated theme response", err)
+	}
+
+	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
 // GetThemesThemeIdFeaturesFeatureName retrieves details about a specific feature supported by a theme.
@@ -404,10 +484,6 @@ func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, theme
 	}
 
 	log.Printf("GetThemesThemeIdFeaturesFeatureName called for ThemeID: %s, Feature: %s, UserID: %s (Not Implemented - Requires Feature Use Case)", themeId, featureName, userID)
-
-	// TODO: Implement a specific use case method for getting feature details if needed.
-	// featureDetails, err := h.useCase.GetThemeFeature(ctx.Request().Context(), userID, themeId, featureName)
-	// Handle errors and return response...
 
 	return newApiError(http.StatusNotImplemented, fmt.Sprintf("Feature '%s' details not implemented for theme '%s'", featureName, themeId), nil)
 }

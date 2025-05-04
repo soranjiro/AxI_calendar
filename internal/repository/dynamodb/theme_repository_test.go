@@ -220,7 +220,7 @@ func TestDynamoDBThemeRepository_CreateTheme_Success(t *testing.T) {
 			link.PK == userPK(testUserID.String()) && // Use helper
 			strings.HasPrefix(link.SK, "THEME#") && // ThemeID is generated, check prefix
 			link.UserID == testUserID &&
-			link.ThemeName == testTheme.ThemeName
+			link.ThemeID == testTheme.ThemeID
 	})).Return(&dynamodb.PutItemOutput{}, nil).Once() // Expect once for link
 
 	err := repo.CreateTheme(ctx, testTheme)

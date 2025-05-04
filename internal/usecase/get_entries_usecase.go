@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -13,13 +14,22 @@ import (
 )
 
 // GetEntries handles the logic for getting entries.
-func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]api.Entry, error) {
-	// Parse dates
-	startDate := params.StartDate.Time
-	endDate := params.EndDate.Time
+// Returns domain entries.
+func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]entry.Entry, error) {
+	// Parse dates (YYYY-MM-DD string format expected by repository)
+	startDateStr := params.StartDate.Format("2006-01-02")
+	endDateStr := params.EndDate.Format("2006-01-02")
 
+	// Basic date validation (optional, repo might handle it)
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "Invalid start_date format"})
+	}
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "Invalid end_date format"})
+	}
 	if endDate.Before(startDate) {
-		// Use a domain-specific error or a standard error type
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "end_date cannot be before start_date"})
 	}
 
@@ -36,7 +46,7 @@ func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, params api.
 		}
 	}
 
-	// Call repository
+	// Call repository with time.Time dates
 	entries, err := uc.entryRepo.ListEntriesByDateRange(ctx, userID, startDate, endDate, themeIDs)
 	if err != nil {
 		// Log the internal error if needed
@@ -45,11 +55,6 @@ func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, params api.
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entries"})
 	}
 
-	// Convert domain models to API models
-	apiEntries := make([]api.Entry, len(entries))
-	for i, e := range entries {
-		apiEntries[i] = entry.ToApiEntry(e) // Assuming ToApiEntry exists in domain/entry
-	}
-
-	return apiEntries, nil
+	// Return domain models directly
+	return entries, nil
 }

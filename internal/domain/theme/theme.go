@@ -1,173 +1,181 @@
 package theme
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"regexp"
 	"time"
 
-	"github.com/soranjiro/axicalendar/internal/api" // Assuming api.gen.go is in internal/api
-
 	"github.com/google/uuid"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-// ThemeFieldType defines the allowed types for a theme field.
-type ThemeFieldType string
+// FieldType defines the possible types for a theme field.
+type FieldType string
 
 const (
-	FieldTypeText     ThemeFieldType = "text"
-	FieldTypeDate     ThemeFieldType = "date"
-	FieldTypeDateTime ThemeFieldType = "datetime"
-	FieldTypeNumber   ThemeFieldType = "number"
-	FieldTypeBoolean  ThemeFieldType = "boolean"
-	FieldTypeTextarea ThemeFieldType = "textarea"
-	FieldTypeSelect   ThemeFieldType = "select"
+	FieldTypeText     FieldType = "text"
+	FieldTypeDate     FieldType = "date"
+	FieldTypeDateTime FieldType = "datetime"
+	FieldTypeNumber   FieldType = "number"
+	FieldTypeBoolean  FieldType = "boolean"
+	FieldTypeTextarea FieldType = "textarea"
+	FieldTypeSelect   FieldType = "select"
 )
 
 // ThemeField represents a single field definition within a theme.
-// Corresponds to api.ThemeField but used internally.
+// Corresponds to api.ThemeField.
 type ThemeField struct {
-	Name     string         `dynamodbav:"name"`     // Internal field name (unique within theme, snake_case)
-	Label    string         `dynamodbav:"label"`    // Display label
-	Type     ThemeFieldType `dynamodbav:"type"`     // Data type
-	Required bool           `dynamodbav:"required"` // Whether the field is required
-	// Add type-specific validation attributes here if needed (e.g., Options for select)
+	Name     string    `dynamodbav:"Name"`     // Internal field name
+	Label    string    `dynamodbav:"Label"`    // Display label
+	Type     FieldType `dynamodbav:"Type"`     // Data type
+	Required bool      `dynamodbav:"Required"` // Whether the field is required
 }
 
-// Theme represents a calendar theme (default or custom).
-// Corresponds to api.Theme but includes DynamoDB keys.
+// Theme represents a calendar theme definition.
+// Corresponds to api.Theme but includes DynamoDB keys and uses domain types.
 type Theme struct {
-	PK                string       `dynamodbav:"PK"` // Partition Key: THEME#<theme_id>
-	SK                string       `dynamodbav:"SK"` // Sort Key: METADATA
+	PK                string       `dynamodbav:"PK"` // Partition Key: USER#<user_id> or DEFAULT#THEME
+	SK                string       `dynamodbav:"SK"` // Sort Key: THEME#<theme_id>
 	ThemeID           uuid.UUID    `dynamodbav:"ThemeID"`
 	ThemeName         string       `dynamodbav:"ThemeName"`
 	Fields            []ThemeField `dynamodbav:"Fields"`
 	IsDefault         bool         `dynamodbav:"IsDefault"`
-	OwnerUserID       *uuid.UUID   `dynamodbav:"OwnerUserID,omitempty"`       // Null for default themes
-	SupportedFeatures []string     `dynamodbav:"SupportedFeatures,omitempty"` // V1 Add: List of supported features
+	OwnerUserID       *uuid.UUID   `dynamodbav:"OwnerUserID,omitempty"` // Pointer to allow null for default themes
+	SupportedFeatures []string     `dynamodbav:"SupportedFeatures"`
 	CreatedAt         time.Time    `dynamodbav:"CreatedAt"`
 	UpdatedAt         time.Time    `dynamodbav:"UpdatedAt"`
 }
 
-// UserThemeLink represents the relationship between a user and a theme they can use.
-// Used for DynamoDB item: PK=USER#<user_id>, SK=THEME#<theme_id>
+// UserThemeLink represents the association between a user and a theme they can use.
+// This is used for DynamoDB storage to quickly find themes accessible by a user.
 type UserThemeLink struct {
-	PK        string    `dynamodbav:"PK"` // Partition Key: USER#<user_id>
-	SK        string    `dynamodbav:"SK"` // Sort Key: THEME#<theme_id>
-	UserID    uuid.UUID `dynamodbav:"UserID"`
-	ThemeID   uuid.UUID `dynamodbav:"ThemeID"`
-	ThemeName string    `dynamodbav:"ThemeName"` // Denormalized for query efficiency
-	CreatedAt time.Time `dynamodbav:"CreatedAt"`
+	PK      string    `dynamodbav:"PK"`      // Partition Key: USER#<user_id>
+	SK      string    `dynamodbav:"SK"`      // Sort Key: LINK#THEME#<theme_id>
+	UserID  uuid.UUID `dynamodbav:"UserID"`  // For potential GSI queries if needed
+	ThemeID uuid.UUID `dynamodbav:"ThemeID"` // For potential GSI queries if needed
 }
 
-// --- Conversion Helpers ---
+// --- Validation Logic (Moved from internal/validation) ---
 
-// ToApiThemeField converts internal ThemeField to API ThemeField
-func ToApiThemeField(mf ThemeField) api.ThemeField {
-	req := mf.Required // Copy bool value
-	return api.ThemeField{
-		Label:    mf.Label,
-		Name:     mf.Name,
-		Required: &req,                        // Assign pointer
-		Type:     api.ThemeFieldType(mf.Type), // Convert string type
+var validFieldNameRegex = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+var validFeatureNameRegex = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// Validate checks the theme's own fields for validity.
+func (t *Theme) Validate() error {
+	if t.ThemeName == "" {
+		return errors.New("theme name is required")
 	}
+	if err := ValidateThemeFields(t.Fields); err != nil {
+		return fmt.Errorf("invalid theme fields: %w", err)
+	}
+	if err := ValidateSupportedFeatures(t.SupportedFeatures); err != nil {
+		return fmt.Errorf("invalid supported features: %w", err)
+	}
+	return nil
 }
 
-// FromApiThemeField converts API ThemeField to internal ThemeField
-func FromApiThemeField(af api.ThemeField) ThemeField {
-	required := false
-	if af.Required != nil {
-		required = *af.Required
+// ValidateThemeFields performs basic validation on domain theme field definitions.
+func ValidateThemeFields(fields []ThemeField) error {
+	if len(fields) == 0 {
+		return errors.New("theme must have at least one field")
 	}
-	return ThemeField{
-		Label:    af.Label,
-		Name:     af.Name,
-		Required: required,
-		Type:     ThemeFieldType(af.Type), // Convert string type
+	names := make(map[string]bool)
+	for i, field := range fields {
+		if field.Name == "" {
+			return fmt.Errorf("field %d: name is required", i)
+		}
+		if !IsValidFieldName(field.Name) {
+			return fmt.Errorf("field %d ('%s'): name contains invalid characters (allowed: a-z, 0-9, _ starting with letter or _)", i, field.Name)
+		}
+		if field.Label == "" {
+			return fmt.Errorf("field %d ('%s'): label is required", i, field.Name)
+		}
+		if _, exists := names[field.Name]; exists {
+			return fmt.Errorf("field name '%s' is duplicated", field.Name)
+		}
+		names[field.Name] = true
+
+		isValidType := false
+		validTypes := []FieldType{
+			FieldTypeText,
+			FieldTypeDate,
+			FieldTypeDateTime,
+			FieldTypeNumber,
+			FieldTypeBoolean,
+			FieldTypeTextarea,
+			FieldTypeSelect,
+		}
+		for _, vt := range validTypes {
+			if field.Type == vt {
+				isValidType = true
+				break
+			}
+		}
+		if !isValidType {
+			return fmt.Errorf("field '%s': invalid type '%s'", field.Name, field.Type)
+		}
+		// Required is a boolean, no need for nil check like in API model
 	}
+	return nil
 }
 
-// ToApiTheme converts internal Theme to API Theme
-func ToApiTheme(mt Theme) api.Theme {
-	apiFields := make([]api.ThemeField, len(mt.Fields))
-	for i, f := range mt.Fields {
-		apiFields[i] = ToApiThemeField(f)
+// IsValidFieldName checks if a field name is valid (e.g., snake_case).
+func IsValidFieldName(name string) bool {
+	if name == "" {
+		return false
 	}
-	isDefault := mt.IsDefault           // Copy bool value
-	themeID := mt.ThemeID               // Copy UUID
-	createdAt := mt.CreatedAt           // Copy time
-	updatedAt := mt.UpdatedAt           // Copy time
-	var ownerUserID *openapi_types.UUID // Use openapi_types.UUID for pointer
-	if mt.OwnerUserID != nil {
-		uidCopy := *mt.OwnerUserID
-		ownerUserID = &uidCopy // Assign pointer
-	}
-
-	// Ensure SupportedFeatures is not nil before assigning
-	supportedFeatures := mt.SupportedFeatures
-	if supportedFeatures == nil {
-		supportedFeatures = []string{} // Return empty array instead of null
-	}
-	// Convert slice to pointer for the API struct
-	apiSupportedFeatures := &supportedFeatures
-
-	return api.Theme{
-		CreatedAt:         &createdAt,
-		Fields:            apiFields,
-		IsDefault:         &isDefault, // Assign pointer
-		ThemeId:           &themeID,   // Assign pointer to UUID
-		ThemeName:         mt.ThemeName,
-		UpdatedAt:         &updatedAt,
-		OwnerUserId:       ownerUserID,          // Map OwnerUserID to OwnerUserId
-		SupportedFeatures: apiSupportedFeatures, // Assign pointer to features slice
-	}
+	return validFieldNameRegex.MatchString(name)
 }
 
-// FromApiTheme converts API Theme to internal Theme (partial conversion)
-func FromApiTheme(at api.Theme) Theme {
-	// Note: PK, SK are not present in api.Theme.
-	// IsDefault, OwnerUserID might be nil in API request, handle appropriately.
-	var themeID uuid.UUID
-	if at.ThemeId != nil {
-		themeID = *at.ThemeId
-	}
-	var ownerUserID *uuid.UUID
-	if at.OwnerUserId != nil {
-		uidCopy := *at.OwnerUserId
-		ownerUserID = &uidCopy
-	}
-	isDefault := false
-	if at.IsDefault != nil {
-		isDefault = *at.IsDefault
-	}
-	fields := make([]ThemeField, len(at.Fields))
-	for i, f := range at.Fields {
-		fields[i] = FromApiThemeField(f)
-	}
-	supportedFeatures := []string{}
-	if at.SupportedFeatures != nil {
-		supportedFeatures = *at.SupportedFeatures
+// ValidateSupportedFeatures performs basic validation on supported feature names.
+func ValidateSupportedFeatures(features []string) error {
+	// Allow empty or nil features list
+	if features == nil || len(features) == 0 {
+		return nil
 	}
 
-	return Theme{
-		ThemeID:           themeID,
-		ThemeName:         at.ThemeName,
-		Fields:            fields,
-		IsDefault:         isDefault,
-		OwnerUserID:       ownerUserID,
-		SupportedFeatures: supportedFeatures,
-		// CreatedAt, UpdatedAt might be nil
+	validFeatures := map[string]bool{
+		"monthly_summary":      true,
+		"category_aggregation": true,
+		// Add other known valid features here
 	}
+	names := make(map[string]bool)
+	for i, feature := range features {
+		if feature == "" {
+			return fmt.Errorf("feature %d: name cannot be empty", i)
+		}
+		if !IsValidFeatureName(feature) {
+			return fmt.Errorf("feature %d ('%s'): name contains invalid characters or format (use snake_case)", i, feature)
+		}
+		if !validFeatures[feature] {
+			log.Printf("WARN: Potentially unsupported feature '%s' included in theme definition.", feature)
+		}
+		if _, exists := names[feature]; exists {
+			return fmt.Errorf("feature name '%s' is duplicated", feature)
+		}
+		names[feature] = true
+	}
+	return nil
 }
+
+// IsValidFeatureName checks if a feature name is valid (e.g., snake_case).
+func IsValidFeatureName(name string) bool {
+	if name == "" {
+		return false
+	}
+	return validFeatureNameRegex.MatchString(name)
+}
+
+// --- End Validation Logic ---
 
 // ThemeRepository defines the interface for theme data persistence.
-// Implementations will handle the actual database interactions.
 type Repository interface {
 	// Define methods for theme CRUD operations, e.g.:
-	// GetThemeByID(ctx context.Context, themeID uuid.UUID) (*Theme, error)
-	// ListThemes(ctx context.Context, userID uuid.UUID) ([]Theme, error)
-	// CreateTheme(ctx context.Context, theme *Theme) error
-	// UpdateTheme(ctx context.Context, theme *Theme) error
-	// DeleteTheme(ctx context.Context, themeID uuid.UUID, userID uuid.UUID) error
-	// AddUserThemeLink(ctx context.Context, link *UserThemeLink) error
-	// RemoveUserThemeLink(ctx context.Context, userID, themeID uuid.UUID) error
-	// ListUserThemes(ctx context.Context, userID uuid.UUID) ([]UserThemeLink, error)
+	GetThemeByID(ctx context.Context, userID, themeID uuid.UUID) (*Theme, error) // Needs adjustment for default themes
+	ListThemes(ctx context.Context, userID uuid.UUID) ([]Theme, error)
+	CreateTheme(ctx context.Context, theme *Theme) error
+	UpdateTheme(ctx context.Context, theme *Theme) error
+	DeleteTheme(ctx context.Context, userID, themeID uuid.UUID) error
 }
