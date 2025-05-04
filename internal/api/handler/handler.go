@@ -95,6 +95,15 @@ func NewApiHandler(entryRepo repo.EntryRepository, themeRepo repo.ThemeRepositor
 	return &ApiHandler{EntryRepo: entryRepo, ThemeRepo: themeRepo}
 }
 
+// --- Health Check ---
+func (h *ApiHandler) GetHealth(ctx echo.Context) error {
+	// Perform a simple health check
+	// In a real application, you might check database connections, external services, etc.
+	// For now, just return a 200 OK with a simple message.
+	statusOK := "OK"
+	return ctx.JSON(http.StatusOK, api.HealthCheckResponse{Status: &statusOK})
+}
+
 // --- Auth Handlers ---
 
 // GetAuthMe retrieves information about the currently authenticated user.

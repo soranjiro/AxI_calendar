@@ -83,6 +83,11 @@ type ForgotPasswordRequest struct {
 	Email openapi_types.Email `json:"email"`
 }
 
+// HealthCheckResponse defines model for HealthCheckResponse.
+type HealthCheckResponse struct {
+	Status *string `json:"status,omitempty"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Email    openapi_types.Email `json:"email"`
@@ -258,6 +263,9 @@ type ServerInterface interface {
 	// Update an entry
 	// (PUT /entries/{entry_id})
 	PutEntriesEntryId(ctx echo.Context, entryId openapi_types.UUID) error
+	// Health check endpoint
+	// (GET /health)
+	GetHealth(ctx echo.Context) error
 	// List available themes
 	// (GET /themes)
 	GetThemes(ctx echo.Context) error
@@ -458,6 +466,15 @@ func (w *ServerInterfaceWrapper) PutEntriesEntryId(ctx echo.Context) error {
 	return err
 }
 
+// GetHealth converts echo context to params.
+func (w *ServerInterfaceWrapper) GetHealth(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetHealth(ctx)
+	return err
+}
+
 // GetThemes converts echo context to params.
 func (w *ServerInterfaceWrapper) GetThemes(ctx echo.Context) error {
 	var err error
@@ -601,6 +618,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/entries/:entry_id", wrapper.DeleteEntriesEntryId)
 	router.GET(baseURL+"/entries/:entry_id", wrapper.GetEntriesEntryId)
 	router.PUT(baseURL+"/entries/:entry_id", wrapper.PutEntriesEntryId)
+	router.GET(baseURL+"/health", wrapper.GetHealth)
 	router.GET(baseURL+"/themes", wrapper.GetThemes)
 	router.POST(baseURL+"/themes", wrapper.PostThemes)
 	router.DELETE(baseURL+"/themes/:theme_id", wrapper.DeleteThemesThemeId)

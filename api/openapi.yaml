@@ -7,6 +7,20 @@ servers:
   - url: / # API Gateway stage will prepend the actual base path
 
 paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /auth/signup:
     post:
       summary: Register a new user
@@ -494,6 +508,12 @@ paths:
 
 components:
   schemas:
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
     SignupRequest:
       type: object
       properties:
