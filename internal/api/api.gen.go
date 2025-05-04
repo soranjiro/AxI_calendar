@@ -28,18 +28,34 @@ const (
 	Textarea ThemeFieldType = "textarea"
 )
 
+// ConfirmForgotPasswordRequest defines model for ConfirmForgotPasswordRequest.
+type ConfirmForgotPasswordRequest struct {
+	ConfirmationCode string              `json:"confirmation_code"`
+	Email            openapi_types.Email `json:"email"`
+	NewPassword      string              `json:"new_password"`
+}
+
+// ConfirmSignupRequest defines model for ConfirmSignupRequest.
+type ConfirmSignupRequest struct {
+	ConfirmationCode string              `json:"confirmation_code"`
+	Email            openapi_types.Email `json:"email"`
+}
+
 // CreateEntryRequest defines model for CreateEntryRequest.
 type CreateEntryRequest struct {
 	// Data Keys should match field names defined in the specified theme.
 	Data      map[string]interface{} `json:"data"`
 	EntryDate openapi_types.Date     `json:"entry_date"`
-	ThemeID   openapi_types.UUID     `json:"theme_id"` // Field name ThemeID, tag theme_id
+	ThemeId   openapi_types.UUID     `json:"theme_id"`
 }
 
 // CreateThemeRequest defines model for CreateThemeRequest.
 type CreateThemeRequest struct {
-	Fields    []ThemeField `json:"fields"`
-	ThemeName string       `json:"theme_name"`
+	Fields []ThemeField `json:"fields"`
+
+	// SupportedFeatures Optional list of features supported by this new theme.
+	SupportedFeatures *[]string `json:"supported_features,omitempty"`
+	ThemeName         string    `json:"theme_name"`
 }
 
 // Entry defines model for Entry.
@@ -62,6 +78,11 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+// ForgotPasswordRequest defines model for ForgotPasswordRequest.
+type ForgotPasswordRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Email    openapi_types.Email `json:"email"`
@@ -76,6 +97,11 @@ type LoginResponse struct {
 	RefreshToken *string `json:"refresh_token,omitempty"`
 }
 
+// RefreshTokenRequest defines model for RefreshTokenRequest.
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // SignupRequest defines model for SignupRequest.
 type SignupRequest struct {
 	Email    openapi_types.Email `json:"email"`
@@ -84,13 +110,16 @@ type SignupRequest struct {
 
 // Theme defines model for Theme.
 type Theme struct {
-	CreatedAt *time.Time          `json:"created_at,omitempty"`
-	Fields    []ThemeField        `json:"fields"`
-	IsDefault *bool               `json:"is_default,omitempty"`
-	ThemeId   *openapi_types.UUID `json:"theme_id,omitempty"`
-	ThemeName string              `json:"theme_name"`
-	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
-	UserId    *openapi_types.UUID `json:"user_id,omitempty"`
+	CreatedAt   *time.Time          `json:"created_at,omitempty"`
+	Fields      []ThemeField        `json:"fields"`
+	IsDefault   *bool               `json:"is_default,omitempty"`
+	OwnerUserId *openapi_types.UUID `json:"owner_user_id,omitempty"`
+
+	// SupportedFeatures List of features supported by this theme (e.g., 'monthly_summary').
+	SupportedFeatures *[]string           `json:"supported_features,omitempty"`
+	ThemeId           *openapi_types.UUID `json:"theme_id,omitempty"`
+	ThemeName         string              `json:"theme_name"`
+	UpdatedAt         *time.Time          `json:"updated_at,omitempty"`
 }
 
 // ThemeField defines model for ThemeField.
@@ -116,11 +145,35 @@ type UpdateEntryRequest struct {
 	EntryDate openapi_types.Date     `json:"entry_date"`
 }
 
-// UpdateThemeRequest Only theme_name and fields can be updated for custom themes.
+// UpdateThemeRequest Only theme_name, fields, and supported_features can be updated for custom themes.
 type UpdateThemeRequest struct {
-	Fields    []ThemeField `json:"fields"`
-	ThemeName string       `json:"theme_name"`
+	Fields []ThemeField `json:"fields"`
+
+	// SupportedFeatures Optional updated list of features supported by this theme.
+	SupportedFeatures *[]string `json:"supported_features,omitempty"`
+	ThemeName         string    `json:"theme_name"`
 }
+
+// User defines model for User.
+type User struct {
+	Email  *openapi_types.Email `json:"email,omitempty"`
+	UserId *openapi_types.UUID  `json:"user_id,omitempty"`
+}
+
+// BadRequest defines model for BadRequest.
+type BadRequest = Error
+
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
+// InternalServerError defines model for InternalServerError.
+type InternalServerError = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
+
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = Error
 
 // GetEntriesParams defines parameters for GetEntries.
 type GetEntriesParams struct {
@@ -134,8 +187,20 @@ type GetEntriesParams struct {
 	ThemeIds *string `form:"theme_ids,omitempty" json:"theme_ids,omitempty"`
 }
 
+// PostAuthConfirmForgotPasswordJSONRequestBody defines body for PostAuthConfirmForgotPassword for application/json ContentType.
+type PostAuthConfirmForgotPasswordJSONRequestBody = ConfirmForgotPasswordRequest
+
+// PostAuthConfirmSignupJSONRequestBody defines body for PostAuthConfirmSignup for application/json ContentType.
+type PostAuthConfirmSignupJSONRequestBody = ConfirmSignupRequest
+
+// PostAuthForgotPasswordJSONRequestBody defines body for PostAuthForgotPassword for application/json ContentType.
+type PostAuthForgotPasswordJSONRequestBody = ForgotPasswordRequest
+
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostAuthRefreshJSONRequestBody defines body for PostAuthRefresh for application/json ContentType.
+type PostAuthRefreshJSONRequestBody = RefreshTokenRequest
 
 // PostAuthSignupJSONRequestBody defines body for PostAuthSignup for application/json ContentType.
 type PostAuthSignupJSONRequestBody = SignupRequest
@@ -154,9 +219,27 @@ type PutThemesThemeIdJSONRequestBody = UpdateThemeRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Confirm forgot password and set new password
+	// (POST /auth/confirm-forgot-password)
+	PostAuthConfirmForgotPassword(ctx echo.Context) error
+	// Confirm user signup
+	// (POST /auth/confirm-signup)
+	PostAuthConfirmSignup(ctx echo.Context) error
+	// Initiate forgot password flow
+	// (POST /auth/forgot-password)
+	PostAuthForgotPassword(ctx echo.Context) error
 	// Log in a user
 	// (POST /auth/login)
 	PostAuthLogin(ctx echo.Context) error
+	// Log out user (client-side token removal)
+	// (POST /auth/logout)
+	PostAuthLogout(ctx echo.Context) error
+	// Get current authenticated user's info
+	// (GET /auth/me)
+	GetAuthMe(ctx echo.Context) error
+	// Refresh access token using refresh token
+	// (POST /auth/refresh)
+	PostAuthRefresh(ctx echo.Context) error
 	// Register a new user
 	// (POST /auth/signup)
 	PostAuthSignup(ctx echo.Context) error
@@ -190,11 +273,41 @@ type ServerInterface interface {
 	// Update a custom theme
 	// (PUT /themes/{theme_id})
 	PutThemesThemeId(ctx echo.Context, themeId openapi_types.UUID) error
+	// Execute a specific feature for a theme (e.g., aggregation)
+	// (GET /themes/{theme_id}/features/{feature_name})
+	GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// PostAuthConfirmForgotPassword converts echo context to params.
+func (w *ServerInterfaceWrapper) PostAuthConfirmForgotPassword(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostAuthConfirmForgotPassword(ctx)
+	return err
+}
+
+// PostAuthConfirmSignup converts echo context to params.
+func (w *ServerInterfaceWrapper) PostAuthConfirmSignup(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostAuthConfirmSignup(ctx)
+	return err
+}
+
+// PostAuthForgotPassword converts echo context to params.
+func (w *ServerInterfaceWrapper) PostAuthForgotPassword(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostAuthForgotPassword(ctx)
+	return err
 }
 
 // PostAuthLogin converts echo context to params.
@@ -203,6 +316,37 @@ func (w *ServerInterfaceWrapper) PostAuthLogin(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.PostAuthLogin(ctx)
+	return err
+}
+
+// PostAuthLogout converts echo context to params.
+func (w *ServerInterfaceWrapper) PostAuthLogout(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(CognitoAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostAuthLogout(ctx)
+	return err
+}
+
+// GetAuthMe converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAuthMe(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(CognitoAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAuthMe(ctx)
+	return err
+}
+
+// PostAuthRefresh converts echo context to params.
+func (w *ServerInterfaceWrapper) PostAuthRefresh(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostAuthRefresh(ctx)
 	return err
 }
 
@@ -390,6 +534,32 @@ func (w *ServerInterfaceWrapper) PutThemesThemeId(ctx echo.Context) error {
 	return err
 }
 
+// GetThemesThemeIdFeaturesFeatureName converts echo context to params.
+func (w *ServerInterfaceWrapper) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "theme_id" -------------
+	var themeId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "theme_id", runtime.ParamLocationPath, ctx.Param("theme_id"), &themeId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter theme_id: %s", err))
+	}
+
+	// ------------- Path parameter "feature_name" -------------
+	var featureName string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "feature_name", runtime.ParamLocationPath, ctx.Param("feature_name"), &featureName)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter feature_name: %s", err))
+	}
+
+	ctx.Set(CognitoAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetThemesThemeIdFeaturesFeatureName(ctx, themeId, featureName)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -418,7 +588,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.POST(baseURL+"/auth/confirm-forgot-password", wrapper.PostAuthConfirmForgotPassword)
+	router.POST(baseURL+"/auth/confirm-signup", wrapper.PostAuthConfirmSignup)
+	router.POST(baseURL+"/auth/forgot-password", wrapper.PostAuthForgotPassword)
 	router.POST(baseURL+"/auth/login", wrapper.PostAuthLogin)
+	router.POST(baseURL+"/auth/logout", wrapper.PostAuthLogout)
+	router.GET(baseURL+"/auth/me", wrapper.GetAuthMe)
+	router.POST(baseURL+"/auth/refresh", wrapper.PostAuthRefresh)
 	router.POST(baseURL+"/auth/signup", wrapper.PostAuthSignup)
 	router.GET(baseURL+"/entries", wrapper.GetEntries)
 	router.POST(baseURL+"/entries", wrapper.PostEntries)
@@ -430,5 +606,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/themes/:theme_id", wrapper.DeleteThemesThemeId)
 	router.GET(baseURL+"/themes/:theme_id", wrapper.GetThemesThemeId)
 	router.PUT(baseURL+"/themes/:theme_id", wrapper.PutThemesThemeId)
+	router.GET(baseURL+"/themes/:theme_id/features/:feature_name", wrapper.GetThemesThemeIdFeaturesFeatureName)
 
 }

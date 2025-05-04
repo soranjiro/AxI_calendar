@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"bytes"
@@ -10,11 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/soranjiro/axicalendar/internal/api"
+	"github.com/soranjiro/axicalendar/internal/domain/entry"
+	"github.com/soranjiro/axicalendar/internal/domain/theme"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"github.com/soranjiro/axicalendar/internal/api"
-	"github.com/soranjiro/axicalendar/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,28 +27,28 @@ type MockEntryRepository struct {
 	mock.Mock
 }
 
-func (m *MockEntryRepository) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*models.Entry, error) {
+func (m *MockEntryRepository) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*entry.Entry, error) {
 	args := m.Called(ctx, userID, entryID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Entry), args.Error(1)
+	return args.Get(0).(*entry.Entry), args.Error(1)
 }
 
-func (m *MockEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]models.Entry, error) {
+func (m *MockEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]entry.Entry, error) {
 	args := m.Called(ctx, userID, startDate, endDate, themeIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.Entry), args.Error(1)
+	return args.Get(0).([]entry.Entry), args.Error(1)
 }
 
-func (m *MockEntryRepository) CreateEntry(ctx context.Context, entry *models.Entry) error {
+func (m *MockEntryRepository) CreateEntry(ctx context.Context, entry *entry.Entry) error {
 	args := m.Called(ctx, entry)
 	return args.Error(0)
 }
 
-func (m *MockEntryRepository) UpdateEntry(ctx context.Context, entry *models.Entry) error {
+func (m *MockEntryRepository) UpdateEntry(ctx context.Context, entry *entry.Entry) error {
 	args := m.Called(ctx, entry)
 	return args.Error(0)
 }
@@ -56,32 +58,40 @@ func (m *MockEntryRepository) DeleteEntry(ctx context.Context, userID uuid.UUID,
 	return args.Error(0)
 }
 
+func (m *MockEntryRepository) GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, month string) ([]entry.Entry, error) {
+	args := m.Called(ctx, userID, themeID, month)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]entry.Entry), args.Error(1)
+}
+
 type MockThemeRepository struct {
 	mock.Mock
 }
 
-func (m *MockThemeRepository) GetThemeByID(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*models.Theme, error) {
+func (m *MockThemeRepository) GetThemeByID(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*theme.Theme, error) {
 	args := m.Called(ctx, userID, themeID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.Theme), args.Error(1)
+	return args.Get(0).(*theme.Theme), args.Error(1)
 }
 
-func (m *MockThemeRepository) ListThemes(ctx context.Context, userID uuid.UUID) ([]models.Theme, error) {
+func (m *MockThemeRepository) ListThemes(ctx context.Context, userID uuid.UUID) ([]theme.Theme, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.Theme), args.Error(1)
+	return args.Get(0).([]theme.Theme), args.Error(1)
 }
 
-func (m *MockThemeRepository) CreateTheme(ctx context.Context, theme *models.Theme) error {
+func (m *MockThemeRepository) CreateTheme(ctx context.Context, theme *theme.Theme) error {
 	args := m.Called(ctx, theme)
 	return args.Error(0)
 }
 
-func (m *MockThemeRepository) UpdateTheme(ctx context.Context, theme *models.Theme) error {
+func (m *MockThemeRepository) UpdateTheme(ctx context.Context, theme *theme.Theme) error {
 	args := m.Called(ctx, theme)
 	return args.Error(0)
 }
@@ -89,6 +99,24 @@ func (m *MockThemeRepository) UpdateTheme(ctx context.Context, theme *models.The
 func (m *MockThemeRepository) DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error {
 	args := m.Called(ctx, userID, themeID)
 	return args.Error(0)
+}
+
+func (m *MockThemeRepository) AddUserThemeLink(ctx context.Context, link *theme.UserThemeLink) error {
+	args := m.Called(ctx, link)
+	return args.Error(0)
+}
+
+func (m *MockThemeRepository) RemoveUserThemeLink(ctx context.Context, userID, themeID uuid.UUID) error {
+	args := m.Called(ctx, userID, themeID)
+	return args.Error(0)
+}
+
+func (m *MockThemeRepository) ListUserThemes(ctx context.Context, userID uuid.UUID) ([]theme.UserThemeLink, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]theme.UserThemeLink), args.Error(1)
 }
 
 // --- Helper Functions ---
@@ -121,7 +149,7 @@ func TestApiHandler_GetEntries_Success(t *testing.T) {
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
 
-	expectedEntries := []models.Entry{
+	expectedEntries := []entry.Entry{
 		{EntryID: testEntryID1, UserID: testUserID, ThemeID: testThemeID, EntryDate: "2024-01-10", Data: map[string]interface{}{"field": "value1"}, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		{EntryID: testEntryID2, UserID: testUserID, ThemeID: testThemeID, EntryDate: "2024-01-20", Data: map[string]interface{}{"field": "value2"}, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
@@ -249,15 +277,15 @@ func TestApiHandler_PostEntries_ValidationError(t *testing.T) {
 	testThemeID := uuid.New()
 	entryDate := time.Now()
 
-	theme := &models.Theme{
+	theme := &theme.Theme{
 		ThemeID:   testThemeID,
 		ThemeName: "Test Theme",
-		Fields: []models.ThemeField{
-			{Name: "name", Label: "Name", Type: models.FieldTypeText, Required: true},
-			{Name: "optional_num", Label: "Optional Number", Type: models.FieldTypeNumber, Required: false},
+		Fields: []theme.ThemeField{
+			{Name: "name", Label: "Name", Type: theme.FieldTypeText, Required: true},
+			{Name: "optional_num", Label: "Optional Number", Type: theme.FieldTypeNumber, Required: false},
 		},
-		IsDefault: false,
-		UserID:    &testUserID,
+		IsDefault:   false,
+		OwnerUserID: &testUserID,
 	}
 
 	mockThemeRepo.On("GetThemeByID", mock.Anything, testUserID, testThemeID).Return(theme, nil)
@@ -268,7 +296,7 @@ func TestApiHandler_PostEntries_ValidationError(t *testing.T) {
 
 	// Create request payload and marshal it
 	requestPayload := api.CreateEntryRequest{
-		ThemeID:   testThemeID,
+		ThemeId:   testThemeID,
 		EntryDate: openapi_types.Date{Time: entryDate},
 		Data: map[string]interface{}{
 			"optional_num": 123, // Missing required "name" field

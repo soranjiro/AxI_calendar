@@ -1,4 +1,4 @@
-package repository
+package dynamodbrepo
 
 import (
 	"context"
@@ -10,9 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	"github.com/soranjiro/axicalendar/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/soranjiro/axicalendar/internal/domain/entry"
 )
 
 func setupEntryRepoTest() (*dynamoDBEntryRepository, *MockDynamoDBAPI) {
@@ -30,7 +31,7 @@ func TestDynamoDBEntryRepository_GetEntryByID_Success(t *testing.T) {
 	testThemeID := uuid.New()
 	entryDate := "2024-01-15"
 
-	expectedEntry := &models.Entry{
+	expectedEntry := &entry.Entry{
 		PK:        userPK(testUserID.String()),
 		SK:        entrySK(entryDate, testEntryID.String()),
 		EntryID:   testEntryID,
@@ -100,8 +101,8 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_Success(t *testing.T) {
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
 
-	entry1 := models.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: uuid.New()}
-	entry2 := models.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-20", ThemeID: uuid.New()}
+	entry1 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: uuid.New()}
+	entry2 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-20", ThemeID: uuid.New()}
 	item1, _ := attributevalue.MarshalMap(entry1)
 	item2, _ := attributevalue.MarshalMap(entry2)
 
@@ -127,7 +128,7 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_WithThemeFilter(t *testi
 	endDate := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
 	themeID1 := uuid.New()
 
-	entry1 := models.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: themeID1}
+	entry1 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: themeID1}
 	// entry2 has themeID2, should be filtered out by mock setup if filter works
 	item1, _ := attributevalue.MarshalMap(entry1)
 
@@ -148,7 +149,7 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_WithThemeFilter(t *testi
 func TestDynamoDBEntryRepository_CreateEntry_Success(t *testing.T) {
 	repo, mockDB := setupEntryRepoTest()
 	ctx := context.Background()
-	testEntry := &models.Entry{
+	testEntry := &entry.Entry{
 		UserID:    uuid.New(),
 		ThemeID:   uuid.New(),
 		EntryDate: "2024-01-15",
@@ -170,7 +171,7 @@ func TestDynamoDBEntryRepository_CreateEntry_Success(t *testing.T) {
 func TestDynamoDBEntryRepository_CreateEntry_AlreadyExists(t *testing.T) {
 	repo, mockDB := setupEntryRepoTest()
 	ctx := context.Background()
-	testEntry := &models.Entry{
+	testEntry := &entry.Entry{
 		UserID:    uuid.New(),
 		ThemeID:   uuid.New(),
 		EntryDate: "2024-01-15",

@@ -1,8 +1,8 @@
-axicalendar-api
-
 secret/*
 
-.DS_Store
+**/.DS_Store
 
 *.log
 *.out
+
+.vscode

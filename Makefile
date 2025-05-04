@@ -127,9 +127,9 @@ delete-table:
 # Code Generation
 gen:
 	@echo "Generating Go code from OpenAPI spec (api/openapi.yaml)..."
-	@if ! command -v $(OAPI_CODEGEN_CMD) &> /dev/null; then \
+	@if ! command -v $(OAPI_CODEGEN_CMD) > /dev/null 2>&1; then \
 		echo "Error: $(OAPI_CODEGEN_CMD) command not found."; \
-		echo "Please install it: go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest"; \
+		echo "Please install it: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"; \
 		exit 1; \
 	fi
 	$(OAPI_CODEGEN_CMD) -generate types,server -package api -o internal/api/api.gen.go api/openapi.yaml
