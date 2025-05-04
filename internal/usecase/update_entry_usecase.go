@@ -13,28 +13,11 @@ import (
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/entry" // Needed for validation
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
-	"github.com/soranjiro/axicalendar/internal/validation" // Import validation package
+	"github.com/soranjiro/axicalendar/internal/validation"   // Import validation package
 )
 
-// UpdateEntryUseCase defines the interface for the update entry use case.
-type UpdateEntryUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, req api.UpdateEntryRequest) (*api.Entry, error)
-}
-
-// updateEntryUseCase implements the UpdateEntryUseCase interface.
-type updateEntryUseCase struct {
-	entryRepo repo.EntryRepository
-	themeRepo repo.ThemeRepository // Needed to validate data against theme
-}
-
-// NewUpdateEntryUseCase creates a new UpdateEntryUseCase.
-func NewUpdateEntryUseCase(entryRepo repo.EntryRepository, themeRepo repo.ThemeRepository) UpdateEntryUseCase {
-	return &updateEntryUseCase{entryRepo: entryRepo, themeRepo: themeRepo}
-}
-
-// Execute handles the logic for updating an entry.
-func (uc *updateEntryUseCase) Execute(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, req api.UpdateEntryRequest) (*api.Entry, error) {
+// UpdateEntry handles the logic for updating an entry.
+func (uc *UseCase) UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, req api.UpdateEntryRequest) (*api.Entry, error) {
 	// 1. Get existing entry to find ThemeID and validate ownership/existence
 	existingEntry, err := uc.entryRepo.GetEntryByID(ctx, userID, entryID)
 	if err != nil {

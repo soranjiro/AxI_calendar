@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,34 +11,19 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
+	"github.com/soranjiro/axicalendar/internal/validation" // Import validation package
 )
 
-// CreateThemeUseCase defines the interface for the create theme use case.
-type CreateThemeUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, req api.CreateThemeRequest) (*api.Theme, error)
-}
-
-// createThemeUseCase implements the CreateThemeUseCase interface.
-type createThemeUseCase struct {
-	themeRepo repo.ThemeRepository
-}
-
-// NewCreateThemeUseCase creates a new CreateThemeUseCase.
-func NewCreateThemeUseCase(themeRepo repo.ThemeRepository) CreateThemeUseCase {
-	return &createThemeUseCase{themeRepo: themeRepo}
-}
-
-// Execute handles the logic for creating a new theme.
-func (uc *createThemeUseCase) Execute(ctx context.Context, userID uuid.UUID, req api.CreateThemeRequest) (*api.Theme, error) {
-	// 1. Validate theme fields definition
-	if err := validateThemeFields(req.Fields); err != nil {
+// CreateTheme handles the logic for creating a new theme.
+func (uc *UseCase) CreateTheme(ctx context.Context, userID uuid.UUID, req api.CreateThemeRequest) (*api.Theme, error) {
+	// 1. Validate theme fields definition using validation package
+	if err := validation.ValidateApiThemeFields(req.Fields); err != nil {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Theme fields validation failed: %v", err)})
 	}
 
-	// 2. Validate supported features (basic validation)
+	// 2. Validate supported features (basic validation) using validation package
 	if req.SupportedFeatures != nil {
-		if err := validateSupportedFeatures(*req.SupportedFeatures); err != nil {
+		if err := validation.ValidateSupportedFeatures(*req.SupportedFeatures); err != nil {
 			return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Supported features validation failed: %v", err)})
 		}
 	}
@@ -91,106 +75,4 @@ func (uc *createThemeUseCase) Execute(ctx context.Context, userID uuid.UUID, req
 	// 8. Convert to API model and return
 	apiTheme := theme.ToApiTheme(*createdTheme)
 	return &apiTheme, nil
-}
-
-// --- Validation Helpers (Consider moving to a shared validation package) ---
-
-// validateSupportedFeatures performs basic validation on supported feature names.
-func validateSupportedFeatures(features []string) error {
-	validFeatures := map[string]bool{
-		"monthly_summary":      true,
-		"category_aggregation": true,
-		// Add other known valid features here
-	}
-	names := make(map[string]bool)
-	for i, feature := range features {
-		if feature == "" {
-			return fmt.Errorf("feature %d: name cannot be empty", i)
-		}
-		if !isValidFeatureName(feature) {
-			return fmt.Errorf("feature %d ('%s'): name contains invalid characters or format (use snake_case)", i, feature)
-		}
-		if !validFeatures[feature] {
-			log.Printf("WARN: Potentially unsupported feature '%s' included in theme definition.", feature)
-		}
-		if _, exists := names[feature]; exists {
-			return fmt.Errorf("feature name '%s' is duplicated", feature)
-		}
-		names[feature] = true
-	}
-	return nil
-}
-
-// isValidFeatureName checks if a feature name is valid (e.g., snake_case).
-func isValidFeatureName(name string) bool {
-	if name == "" || !(name[0] >= 'a' && name[0] <= 'z') {
-		return false
-	}
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_') {
-			return false
-		}
-	}
-	return true
-}
-
-// validateThemeFields performs basic validation on theme field definitions.
-func validateThemeFields(fields []api.ThemeField) error {
-	if len(fields) == 0 {
-		return errors.New("theme must have at least one field")
-	}
-	names := make(map[string]bool)
-	for i, field := range fields {
-		if field.Name == "" {
-			return fmt.Errorf("field %d: name is required", i)
-		}
-		if !isValidFieldName(field.Name) {
-			return fmt.Errorf("field %d ('%s'): name contains invalid characters (allowed: a-z, 0-9, _ starting with letter or _)", i, field.Name)
-		}
-		if field.Label == "" {
-			return fmt.Errorf("field %d ('%s'): label is required", i, field.Name)
-		}
-		if _, exists := names[field.Name]; exists {
-			return fmt.Errorf("field name '%s' is duplicated", field.Name)
-		}
-		names[field.Name] = true
-
-		isValidType := false
-		validTypes := []api.ThemeFieldType{
-			api.Text,
-			api.Date,
-			api.Datetime,
-			api.Number,
-			api.Boolean,
-			api.Textarea,
-			api.Select,
-		}
-		for _, vt := range validTypes {
-			if field.Type == vt {
-				isValidType = true
-				break
-			}
-		}
-		if !isValidType {
-			return fmt.Errorf("field '%s': invalid type '%s'", field.Name, field.Type)
-		}
-
-		if field.Required == nil {
-			return fmt.Errorf("field %d ('%s'): required attribute must be explicitly set to true or false", i, field.Name)
-		}
-	}
-	return nil
-}
-
-// isValidFieldName checks if a field name is valid (e.g., snake_case).
-func isValidFieldName(name string) bool {
-	if name == "" || (!((name[0] >= 'a' && name[0] <= 'z') || name[0] == '_')) {
-		return false
-	}
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_') {
-			return false
-		}
-	}
-	return true
 }

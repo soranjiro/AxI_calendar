@@ -14,6 +14,8 @@ var (
     ErrEntryNotFound = errors.New("entry not found") // Kept for potential specific handling
     // ErrCannotDeleteDefaultTheme indicates an attempt to delete a default theme.
     ErrCannotDeleteDefaultTheme = errors.New("cannot delete default theme")
+    // ErrCannotUpdateDefaultTheme indicates an attempt to update a default theme.
+    ErrCannotUpdateDefaultTheme = errors.New("cannot update default theme")
     // ErrAlreadyExists indicates an attempt to create an item that already exists.
     ErrAlreadyExists = errors.New("item already exists")
 )

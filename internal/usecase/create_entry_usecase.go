@@ -13,29 +13,12 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
-	"github.com/soranjiro/axicalendar/internal/domain/entry" // Needed for validation
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
-	"github.com/soranjiro/axicalendar/internal/validation" // Import validation package
+	"github.com/soranjiro/axicalendar/internal/domain/entry" // Needed for ToApiEntry
+	"github.com/soranjiro/axicalendar/internal/validation"   // Import validation package
 )
 
-// CreateEntryUseCase defines the interface for the create entry use case.
-type CreateEntryUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, req api.CreateEntryRequest) (*api.Entry, error)
-}
-
-// createEntryUseCase implements the CreateEntryUseCase interface.
-type createEntryUseCase struct {
-	entryRepo repo.EntryRepository
-	themeRepo repo.ThemeRepository // Needed to validate theme and data
-}
-
-// NewCreateEntryUseCase creates a new CreateEntryUseCase.
-func NewCreateEntryUseCase(entryRepo repo.EntryRepository, themeRepo repo.ThemeRepository) CreateEntryUseCase {
-	return &createEntryUseCase{entryRepo: entryRepo, themeRepo: themeRepo}
-}
-
-// Execute handles the logic for creating an entry.
-func (uc *createEntryUseCase) Execute(ctx context.Context, userID uuid.UUID, req api.CreateEntryRequest) (*api.Entry, error) {
+// CreateEntry handles the logic for creating an entry.
+func (uc *UseCase) CreateEntry(ctx context.Context, userID uuid.UUID, req api.CreateEntryRequest) (*api.Entry, error) {
 	// 1. Validate theme exists and user has access
 	th, err := uc.themeRepo.GetThemeByID(ctx, userID, req.ThemeId)
 	if err != nil {

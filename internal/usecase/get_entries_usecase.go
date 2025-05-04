@@ -10,26 +10,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb" // Assuming DynamoDB repo
 )
 
-// GetEntriesUseCase defines the interface for the get entries use case.
-type GetEntriesUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]api.Entry, error)
-}
-
-// getEntriesUseCase implements the GetEntriesUseCase interface.
-type getEntriesUseCase struct {
-	entryRepo repo.EntryRepository
-}
-
-// NewGetEntriesUseCase creates a new GetEntriesUseCase.
-func NewGetEntriesUseCase(entryRepo repo.EntryRepository) GetEntriesUseCase {
-	return &getEntriesUseCase{entryRepo: entryRepo}
-}
-
-// Execute handles the logic for getting entries.
-func (uc *getEntriesUseCase) Execute(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]api.Entry, error) {
+// GetEntries handles the logic for getting entries.
+func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]api.Entry, error) {
 	// Parse dates
 	startDate := params.StartDate.Time
 	endDate := params.EndDate.Time

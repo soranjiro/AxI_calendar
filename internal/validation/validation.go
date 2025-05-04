@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp" // For IsValidFieldName, IsValidFeatureName
 	"time"
 
 	"github.com/soranjiro/axicalendar/internal/api"
@@ -61,16 +62,14 @@ func ValidateApiThemeFields(fields []api.ThemeField) error {
 }
 
 // IsValidFieldName checks if a field name is valid (e.g., snake_case).
+// Allows snake_case: starts with a letter or underscore, followed by letters, numbers, or underscores.
+var validFieldNameRegex = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+
 func IsValidFieldName(name string) bool {
-	if name == "" || (!((name[0] >= 'a' && name[0] <= 'z') || name[0] == '_')) {
+	if name == "" {
 		return false
 	}
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_') {
-			return false
-		}
-	}
-	return true
+	return validFieldNameRegex.MatchString(name)
 }
 
 // ValidateSupportedFeatures performs basic validation on supported feature names.
@@ -100,16 +99,14 @@ func ValidateSupportedFeatures(features []string) error {
 }
 
 // IsValidFeatureName checks if a feature name is valid (e.g., snake_case).
+// Allows snake_case: starts with a letter, followed by letters, numbers, or underscores.
+var validFeatureNameRegex = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
 func IsValidFeatureName(name string) bool {
-	if name == "" || !(name[0] >= 'a' && name[0] <= 'z') {
+	if name == "" {
 		return false
 	}
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_') {
-			return false
-		}
-	}
-	return true
+	return validFeatureNameRegex.MatchString(name)
 }
 
 // --- Entry Validation Helpers ---

@@ -13,23 +13,43 @@ import (
 	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
 )
 
-// GetThemeByIDUseCase defines the interface for the get theme by ID use case.
-type GetThemeByIDUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*api.Theme, error)
+// UseCaseInterface defines the methods for all use cases.
+type UseCaseInterface interface {
+	// Auth
+	GetAuthMe(ctx context.Context, userID uuid.UUID) (*api.User, error)
+
+	// Entries
+	CreateEntry(ctx context.Context, userID uuid.UUID, req api.CreateEntryRequest) (*api.Entry, error)
+	GetEntries(ctx context.Context, userID uuid.UUID, params api.GetEntriesParams) ([]api.Entry, error)
+	GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*api.Entry, error)
+	UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, req api.UpdateEntryRequest) (*api.Entry, error)
+	DeleteEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) error
+
+	// Themes
+	CreateTheme(ctx context.Context, userID uuid.UUID, req api.CreateThemeRequest) (*api.Theme, error)
+	GetThemes(ctx context.Context, userID uuid.UUID) ([]api.Theme, error)
+	GetThemeByID(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*api.Theme, error)
+	UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, req api.UpdateThemeRequest) (*api.Theme, error)
+	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
 }
 
-// getThemeByIDUseCase implements the GetThemeByIDUseCase interface.
-type getThemeByIDUseCase struct {
+// UseCase implements the UseCaseInterface.
+type UseCase struct {
 	themeRepo repo.ThemeRepository
+	entryRepo repo.EntryRepository
+	// Add other repositories or services as needed
 }
 
-// NewGetThemeByIDUseCase creates a new GetThemeByIDUseCase.
-func NewGetThemeByIDUseCase(themeRepo repo.ThemeRepository) GetThemeByIDUseCase {
-	return &getThemeByIDUseCase{themeRepo: themeRepo}
+// NewUseCase creates a new UseCase with dependencies.
+func NewUseCase(themeRepo repo.ThemeRepository, entryRepo repo.EntryRepository) UseCaseInterface {
+	return &UseCase{
+		themeRepo: themeRepo,
+		entryRepo: entryRepo,
+	}
 }
 
-// Execute handles the logic for getting a single theme by its ID.
-func (uc *getThemeByIDUseCase) Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*api.Theme, error) {
+// GetThemeByID handles the logic for getting a single theme by its ID.
+func (uc *UseCase) GetThemeByID(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*api.Theme, error) {
 	th, err := uc.themeRepo.GetThemeByID(ctx, userID, themeID)
 	if err != nil {
 		if errors.Is(err, domain.ErrThemeNotFound) || errors.Is(err, domain.ErrForbidden) {

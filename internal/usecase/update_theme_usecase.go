@@ -13,34 +13,19 @@ import (
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
+	"github.com/soranjiro/axicalendar/internal/validation" // Import validation package
 )
 
-// UpdateThemeUseCase defines the interface for the update theme use case.
-type UpdateThemeUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, req api.UpdateThemeRequest) (*api.Theme, error)
-}
-
-// updateThemeUseCase implements the UpdateThemeUseCase interface.
-type updateThemeUseCase struct {
-	themeRepo repo.ThemeRepository
-}
-
-// NewUpdateThemeUseCase creates a new UpdateThemeUseCase.
-func NewUpdateThemeUseCase(themeRepo repo.ThemeRepository) UpdateThemeUseCase {
-	return &updateThemeUseCase{themeRepo: themeRepo}
-}
-
-// Execute handles the logic for updating an existing theme.
-func (uc *updateThemeUseCase) Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, req api.UpdateThemeRequest) (*api.Theme, error) {
-	// 1. Validate incoming theme fields definition
-	if err := validateThemeFields(req.Fields); err != nil { // Assumes validateThemeFields is available
+// UpdateTheme handles the logic for updating an existing theme.
+func (uc *UseCase) UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, req api.UpdateThemeRequest) (*api.Theme, error) {
+	// 1. Validate incoming theme fields definition using validation package
+	if err := validation.ValidateApiThemeFields(req.Fields); err != nil {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Theme fields validation failed: %v", err)})
 	}
 
-	// 2. Validate incoming supported features
+	// 2. Validate incoming supported features using validation package
 	if req.SupportedFeatures != nil {
-		if err := validateSupportedFeatures(*req.SupportedFeatures); err != nil { // Assumes validateSupportedFeatures is available
+		if err := validation.ValidateSupportedFeatures(*req.SupportedFeatures); err != nil {
 			return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Supported features validation failed: %v", err)})
 		}
 	}
@@ -112,6 +97,4 @@ func (uc *updateThemeUseCase) Execute(ctx context.Context, userID uuid.UUID, the
 	return &apiTheme, nil
 }
 
-// Note: Assumes validation helper functions (validateThemeFields, validateSupportedFeatures, isValidFieldName, isValidFeatureName)
-// are available in this package or imported from a shared location (e.g., create_theme_usecase.go or validation package).
-// Consider moving them to a shared place.
+// Note: Validation helper functions moved to validation package.

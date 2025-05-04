@@ -9,26 +9,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
 )
 
-// DeleteEntryUseCase defines the interface for the delete entry use case.
-type DeleteEntryUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) error
-}
-
-// deleteEntryUseCase implements the DeleteEntryUseCase interface.
-type deleteEntryUseCase struct {
-	entryRepo repo.EntryRepository
-}
-
-// NewDeleteEntryUseCase creates a new DeleteEntryUseCase.
-func NewDeleteEntryUseCase(entryRepo repo.EntryRepository) DeleteEntryUseCase {
-	return &deleteEntryUseCase{entryRepo: entryRepo}
-}
-
-// Execute handles the logic for deleting an entry.
-func (uc *deleteEntryUseCase) Execute(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) error {
+// DeleteEntry handles the logic for deleting an entry.
+func (uc *UseCase) DeleteEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) error {
 	// Need EntryDate to delete. Get the entry first.
 	e, err := uc.entryRepo.GetEntryByID(ctx, userID, entryID)
 	if err != nil {

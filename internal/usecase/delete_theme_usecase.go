@@ -9,26 +9,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
-	repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
 )
 
-// DeleteThemeUseCase defines the interface for the delete theme use case.
-type DeleteThemeUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
-}
-
-// deleteThemeUseCase implements the DeleteThemeUseCase interface.
-type deleteThemeUseCase struct {
-	themeRepo repo.ThemeRepository
-}
-
-// NewDeleteThemeUseCase creates a new DeleteThemeUseCase.
-func NewDeleteThemeUseCase(themeRepo repo.ThemeRepository) DeleteThemeUseCase {
-	return &deleteThemeUseCase{themeRepo: themeRepo}
-}
-
-// Execute handles the logic for deleting a theme.
-func (uc *deleteThemeUseCase) Execute(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error {
+// DeleteTheme handles the logic for deleting a theme.
+func (uc *UseCase) DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error {
 	// Repository's DeleteTheme already checks ownership and if it's default
 	err := uc.themeRepo.DeleteTheme(ctx, userID, themeID)
 	if err != nil {

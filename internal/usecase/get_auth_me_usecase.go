@@ -13,23 +13,8 @@ import (
 	// repo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
 )
 
-// GetAuthMeUseCase defines the interface for the get authenticated user use case.
-type GetAuthMeUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID) (*api.User, error)
-}
-
-// getAuthMeUseCase implements the GetAuthMeUseCase interface.
-type getAuthMeUseCase struct {
-	// userRepo repo.UserRepository // Inject UserRepository when available
-}
-
-// NewGetAuthMeUseCase creates a new GetAuthMeUseCase.
-func NewGetAuthMeUseCase( /* userRepo repo.UserRepository */ ) GetAuthMeUseCase {
-	return &getAuthMeUseCase{ /* userRepo: userRepo */ }
-}
-
-// Execute handles the logic for getting the current user's details.
-func (uc *getAuthMeUseCase) Execute(ctx context.Context, userID uuid.UUID) (*api.User, error) {
+// GetAuthMe handles the logic for getting the current user's details.
+func (uc *UseCase) GetAuthMe(ctx context.Context, userID uuid.UUID) (*api.User, error) {
 	// In a real application:
 	// 1. Use the userID to fetch user details (e.g., email, name) from a user repository or Cognito.
 	// userDetails, err := uc.userRepo.GetUserByID(ctx, userID)
