@@ -140,7 +140,7 @@ func TestDynamoDBThemeRepository_GetThemeByID_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, theme)
-	assert.EqualError(t, err, "theme not found")
+	assert.ErrorIs(t, err, domain.ErrNotFound) // Use ErrorIs and domain.ErrNotFound
 	mockDB.AssertExpectations(t)
 }
 
@@ -460,7 +460,7 @@ func TestDynamoDBThemeRepository_DeleteTheme_Forbidden(t *testing.T) {
 	err := repo.DeleteTheme(ctx, testUserID, testThemeID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, domain.ErrForbidden)) // Check for wrapped ErrForbidden
+	assert.ErrorIs(t, err, domain.ErrForbidden) // Use errors.Is for wrapped errors
 	mockDB.AssertExpectations(t)
 	mockDB.AssertNotCalled(t, "DeleteItem", mock.Anything, mock.Anything)
 }
@@ -484,7 +484,7 @@ func TestDynamoDBThemeRepository_DeleteTheme_NotFound(t *testing.T) {
 	err := repo.DeleteTheme(ctx, testUserID, testThemeID)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, domain.ErrNotFound)) // Check for wrapped ErrNotFound
+	assert.ErrorIs(t, err, domain.ErrNotFound) // Use errors.Is for wrapped errors
 	mockDB.AssertExpectations(t)
 	mockDB.AssertNotCalled(t, "DeleteItem", mock.Anything, mock.Anything)
 }
@@ -533,6 +533,8 @@ func TestDynamoDBThemeRepository_CreateTheme_DBError_Link(t *testing.T) {
 		var meta theme.Theme
 		err := attributevalue.UnmarshalMap(input.Item, &meta)
 		assert.NoError(t, err) // Add error check
+		// Capture the generated ThemeID for the rollback mock
+		testTheme.ThemeID = meta.ThemeID // Assuming ThemeID is set before this mock is called
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(meta.PK, "THEME#") && meta.SK == "METADATA"
 	})).Return(&dynamodb.PutItemOutput{}, nil).Once()
 
@@ -544,10 +546,23 @@ func TestDynamoDBThemeRepository_CreateTheme_DBError_Link(t *testing.T) {
 		return *input.TableName == repo.dbClient.TableName && strings.HasPrefix(link.PK, "USER#") && strings.HasPrefix(link.SK, "THEME#")
 	})).Return(nil, dbError).Once()
 
+	// Mock DeleteItem for metadata rollback
+	mockDB.On("DeleteItem", ctx, mock.MatchedBy(func(input *dynamodb.DeleteItemInput) bool {
+		// Need to ensure testTheme.ThemeID is captured from the first PutItem mock
+		expectedPK := themePK(testTheme.ThemeID.String()) // Use captured/generated ThemeID
+		expectedSK := themeMetadataSK()
+		pkAttr, pkOk := input.Key["PK"].(*types.AttributeValueMemberS)
+		skAttr, skOk := input.Key["SK"].(*types.AttributeValueMemberS)
+		return *input.TableName == repo.dbClient.TableName &&
+			pkOk && pkAttr.Value == expectedPK &&
+			skOk && skAttr.Value == expectedSK
+	})).Return(&dynamodb.DeleteItemOutput{}, nil).Once() // Expect rollback DeleteItem call
+
 	err := repo.CreateTheme(ctx, testTheme)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create user-theme link")
 	mockDB.AssertExpectations(t)
-	mockDB.AssertNumberOfCalls(t, "PutItem", 2) // Both PutItem calls were attempted
+	mockDB.AssertNumberOfCalls(t, "PutItem", 2)    // Both PutItem calls were attempted
+	mockDB.AssertNumberOfCalls(t, "DeleteItem", 1) // Rollback DeleteItem was called
 }

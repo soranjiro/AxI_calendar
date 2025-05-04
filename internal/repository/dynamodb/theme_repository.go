@@ -44,7 +44,7 @@ func (r *dynamoDBThemeRepository) GetThemeByID(ctx context.Context, userID uuid.
 		return nil, fmt.Errorf("failed to get theme metadata: %w", err)
 	}
 	if result.Item == nil {
-		return nil, errors.New("theme not found")
+		return nil, domain.ErrNotFound // Use domain error
 	}
 	var theme theme.Theme
 	if err := attributevalue.UnmarshalMap(result.Item, &theme); err != nil {
@@ -53,7 +53,7 @@ func (r *dynamoDBThemeRepository) GetThemeByID(ctx context.Context, userID uuid.
 	// Access check: default or owned
 	if !theme.IsDefault {
 		if theme.OwnerUserID == nil || *theme.OwnerUserID != userID {
-			return nil, errors.New("forbidden")
+			return nil, domain.ErrForbidden // Use domain error
 		}
 	}
 	return &theme, nil
