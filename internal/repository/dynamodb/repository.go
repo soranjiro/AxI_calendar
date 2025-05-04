@@ -90,11 +90,3 @@ func themeMetadataSK() string {
 func userThemeLinkSK(themeID string) string {
 	return "THEME#" + themeID
 }
-
-// --- User Key Functions ---
-
-// userProfileSK generates the SK for a user profile item.
-// SK: PROFILE
-func userProfileSK() string {
-	return "PROFILE"
-}
