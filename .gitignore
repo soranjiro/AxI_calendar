@@ -1,8 +1,13 @@
+# exection file
+axicalendar
+
+# secret files
 secret/*
 
+# macOS
 **/.DS_Store
 
+# useless or private files
+.vscode
 *.log
 *.out
-
-.vscode
