@@ -57,10 +57,9 @@ type UserThemeLink struct {
 	ThemeID uuid.UUID `dynamodbav:"ThemeID"` // For potential GSI queries if needed
 }
 
-// --- Validation Logic (Moved from internal/validation) ---
+// --- Validation Logic ---
 
 var validFieldNameRegex = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
-var validFeatureNameRegex = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // Validate checks the theme's own fields for validity.
 func (t *Theme) Validate() error {
@@ -146,9 +145,7 @@ func ValidateSupportedFeatures(features []string) error {
 		if feature == "" {
 			return fmt.Errorf("feature %d: name cannot be empty", i)
 		}
-		if !IsValidFeatureName(feature) {
-			return fmt.Errorf("feature %d ('%s'): name contains invalid characters or format (use snake_case)", i, feature)
-		}
+
 		if !validFeatures[feature] {
 			log.Printf("WARN: Potentially unsupported feature '%s' included in theme definition.", feature)
 		}
@@ -158,14 +155,6 @@ func ValidateSupportedFeatures(features []string) error {
 		names[feature] = true
 	}
 	return nil
-}
-
-// IsValidFeatureName checks if a feature name is valid (e.g., snake_case).
-func IsValidFeatureName(name string) bool {
-	if name == "" {
-		return false
-	}
-	return validFeatureNameRegex.MatchString(name)
 }
 
 // --- End Validation Logic ---

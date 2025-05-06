@@ -11,10 +11,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/api" // Keep for error type
+	"github.com/soranjiro/axicalendar/internal/interfaces/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
-	"github.com/soranjiro/axicalendar/internal/domain/entry" // Use domain entry
-	// "github.com/soranjiro/axicalendar/internal/validation" // Validation moved to domain
+	"github.com/soranjiro/axicalendar/internal/domain/entry"
 )
 
 // CreateEntry handles the logic for creating an entry.

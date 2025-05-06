@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/api" // Keep for error response
+	"github.com/soranjiro/axicalendar/internal/interfaces/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	// No longer need validation package here

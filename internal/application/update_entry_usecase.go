@@ -10,10 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/api" // Keep for request/error types
+	"github.com/soranjiro/axicalendar/internal/interfaces/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/entry" // Use domain entry
-	// "github.com/soranjiro/axicalendar/internal/validation" // Validation moved to domain
 )
 
 // UpdateEntry handles the logic for updating an entry.

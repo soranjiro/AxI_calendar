@@ -3,7 +3,7 @@ package user
 import (
 	"time"
 
-	"github.com/soranjiro/axicalendar/internal/api" // Assuming api.gen.go is in internal/api
+	"github.com/soranjiro/axicalendar/internal/interfaces/api" // Assuming api.gen.go is in internal/api
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"

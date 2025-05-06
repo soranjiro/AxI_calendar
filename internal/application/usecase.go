@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/soranjiro/axicalendar/internal/api" // Keep for GetEntriesParams for now
+	"github.com/soranjiro/axicalendar/internal/interfaces/api"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"
-	dynamodbrepo "github.com/soranjiro/axicalendar/internal/repository/dynamodb"
+	dynamodbrepo "github.com/soranjiro/axicalendar/internal/infrastructure/persistence/dynamodb"
 )
 
 // UseCaseInterface defines the methods for all use cases.
