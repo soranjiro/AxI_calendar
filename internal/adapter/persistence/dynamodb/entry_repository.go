@@ -1,4 +1,4 @@
-package repository
+package dynamodbrepo
 
 import (
 	"context"
@@ -13,7 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-	"github.com/soranjiro/axicalendar/internal/models"
+
+	"github.com/soranjiro/axicalendar/internal/domain/entry"
 )
 
 // dynamoDBEntryRepository implements the EntryRepository interface using DynamoDB.
@@ -34,7 +35,7 @@ func NewEntryRepository(dbClient *DynamoDBClient) EntryRepository {
 // For now, we'll assume a query approach on GSI1 or require EntryDate.
 // Let's stick to the interface definition which only provides UserID and EntryID.
 // We will query GSI1 (PK=USER#<user_id>, SK=ENTRY_DATE#<date>#<entry_id>) and filter.
-func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*models.Entry, error) {
+func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*entry.Entry, error) {
 	gsi1pk := userGSI1PK(userID.String())
 	entryIDStr := entryID.String()
 
@@ -53,7 +54,7 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 
 	paginator := dynamodb.NewQueryPaginator(r.dbClient.Client, queryInput)
 
-	var foundEntry *models.Entry
+	var foundEntry *entry.Entry
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
@@ -62,7 +63,7 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 			return nil, fmt.Errorf("failed to query entries: %w", err)
 		}
 
-		var pageEntries []models.Entry
+		var pageEntries []entry.Entry
 		err = attributevalue.UnmarshalListOfMaps(page.Items, &pageEntries)
 		if err != nil {
 			log.Printf("Error unmarshalling entries for entry %s, user %s: %v", entryID, userID, err)
@@ -93,7 +94,7 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 // ListEntriesByDateRange retrieves entries for a user within a specific date range.
 // Uses GSI1 (PK=USER#<user_id>, SK between ENTRY_DATE#<start_date> and ENTRY_DATE#<end_date>)
 // Optionally filters by theme IDs.
-func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]models.Entry, error) {
+func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]entry.Entry, error) {
 	gsi1pk := userGSI1PK(userID.String())
 	startSK := entryDateSKPrefix(startDate.Format("2006-01-02")) // ENTRY_DATE#YYYY-MM-DD
 	endSK := entryDateSKPrefix(endDate.Format("2006-01-02"))     // ENTRY_DATE#YYYY-MM-DD
@@ -131,7 +132,7 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 
 	paginator := dynamodb.NewQueryPaginator(r.dbClient.Client, queryInput)
 
-	var entries []models.Entry
+	var entries []entry.Entry
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
@@ -139,7 +140,7 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 			return nil, fmt.Errorf("failed to query entries: %w", err)
 		}
 
-		var pageEntries []models.Entry
+		var pageEntries []entry.Entry
 		err = attributevalue.UnmarshalListOfMaps(page.Items, &pageEntries)
 		if err != nil {
 			log.Printf("Error unmarshalling entries for user %s in date range: %v", userID, err)
@@ -152,8 +153,61 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 	return entries, nil
 }
 
+// GetEntriesForSummary retrieves entries for a specific user, theme, and year-month (YYYY-MM).
+// Uses GSI1 (PK=USER#<user_id>, SK starts with ENTRY_DATE#<year_month>) and filters by ThemeID.
+func (r *dynamoDBEntryRepository) GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]entry.Entry, error) {
+	// Validate yearMonth format (YYYY-MM)
+	if len(yearMonth) != 7 || yearMonth[4] != '-' {
+		return nil, errors.New("invalid yearMonth format, expected YYYY-MM")
+	}
+
+	gsi1pk := userGSI1PK(userID.String())
+	skPrefix := entryDateSKPrefix(yearMonth) // ENTRY_DATE#YYYY-MM
+	themeIDStr := themeID.String()
+
+	log.Printf("Listing entries for summary: user %s, theme %s, yearMonth %s", userID, themeID, yearMonth)
+
+	keyCondExpr := "GSI1PK = :pkval AND begins_with(GSI1SK, :skprefix)"
+	filterExpr := "ThemeID = :themeId"
+	exprAttrValues := map[string]types.AttributeValue{
+		":pkval":    &types.AttributeValueMemberS{Value: gsi1pk},
+		":skprefix": &types.AttributeValueMemberS{Value: skPrefix},
+		":themeId":  &types.AttributeValueMemberS{Value: themeIDStr},
+	}
+
+	queryInput := &dynamodb.QueryInput{
+		TableName:                 aws.String(r.dbClient.TableName),
+		IndexName:                 aws.String("GSI1"),
+		KeyConditionExpression:    aws.String(keyCondExpr),
+		FilterExpression:          aws.String(filterExpr),
+		ExpressionAttributeValues: exprAttrValues,
+	}
+
+	paginator := dynamodb.NewQueryPaginator(r.dbClient.Client, queryInput)
+
+	var entries []entry.Entry
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			log.Printf("Error querying entries for summary (user %s, theme %s, month %s): %v", userID, themeID, yearMonth, err)
+			return nil, fmt.Errorf("failed to query entries for summary: %w", err)
+		}
+
+		var pageEntries []entry.Entry
+		err = attributevalue.UnmarshalListOfMaps(page.Items, &pageEntries)
+		if err != nil {
+			log.Printf("Error unmarshalling entries for summary (user %s, theme %s, month %s): %v", userID, themeID, yearMonth, err)
+			return nil, fmt.Errorf("failed to unmarshal entry data for summary: %w", err)
+		}
+		entries = append(entries, pageEntries...)
+	}
+
+	log.Printf("Successfully listed %d entries for summary (user %s, theme %s, month %s)", len(entries), userID, themeID, yearMonth)
+	return entries, nil
+}
+
 // CreateEntry saves a new calendar entry.
-func (r *dynamoDBEntryRepository) CreateEntry(ctx context.Context, entry *models.Entry) error {
+func (r *dynamoDBEntryRepository) CreateEntry(ctx context.Context, entry *entry.Entry) error {
 	if entry.EntryID == uuid.Nil {
 		entry.EntryID = uuid.New()
 	}
@@ -206,7 +260,7 @@ func (r *dynamoDBEntryRepository) CreateEntry(ctx context.Context, entry *models
 // UpdateEntry updates an existing calendar entry.
 // If EntryDate changes, this involves deleting the old item and putting a new one
 // because EntryDate is part of the Sort Key.
-func (r *dynamoDBEntryRepository) UpdateEntry(ctx context.Context, updatedEntry *models.Entry) error {
+func (r *dynamoDBEntryRepository) UpdateEntry(ctx context.Context, updatedEntry *entry.Entry) error {
 	if updatedEntry.EntryID == uuid.Nil || updatedEntry.UserID == uuid.Nil || updatedEntry.EntryDate == "" {
 		return errors.New("entry ID, user ID, and entry date are required for update")
 	}
@@ -231,7 +285,7 @@ func (r *dynamoDBEntryRepository) UpdateEntry(ctx context.Context, updatedEntry 
 
 // updateItem performs a standard DynamoDB UpdateItem operation.
 // Assumes EntryDate (part of SK) has NOT changed.
-func (r *dynamoDBEntryRepository) updateItem(ctx context.Context, entry *models.Entry, originalDate string) error {
+func (r *dynamoDBEntryRepository) updateItem(ctx context.Context, entry *entry.Entry, originalDate string) error {
 	pk := userPK(entry.UserID.String())
 	sk := entrySK(originalDate, entry.EntryID.String()) // Use original date for SK
 	now := time.Now()
@@ -288,7 +342,7 @@ func (r *dynamoDBEntryRepository) updateItem(ctx context.Context, entry *models.
 
 // deleteAndPutItemTransaction deletes the old entry and puts the new entry within a transaction.
 // Used when EntryDate (part of SK) changes during an update.
-func (r *dynamoDBEntryRepository) deleteAndPutItemTransaction(ctx context.Context, newEntryData *models.Entry, oldDate string) error {
+func (r *dynamoDBEntryRepository) deleteAndPutItemTransaction(ctx context.Context, newEntryData *entry.Entry, oldDate string) error {
 	now := time.Now()
 	newEntryData.UpdatedAt = now
 	// Preserve CreatedAt if possible, or set it if missing (shouldn't be)

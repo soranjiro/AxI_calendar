@@ -1,4 +1,4 @@
-package repository
+package dynamodbrepo
 
 import (
 	"context"
@@ -12,6 +12,8 @@ import (
 const (
 	TableNameEnvVar = "DYNAMODB_TABLE_NAME"
 )
+
+// Standard repository errors are defined in errors.go
 
 // DynamoDBAPI defines the interface for DynamoDB operations used by repositories.
 // This allows for mocking in tests.

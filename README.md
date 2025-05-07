@@ -83,13 +83,21 @@ The server will start on `http://localhost:8080` by default. You should see log 
 
 You can use tools like `curl` or Postman to send requests to the running server (e.g., `http://localhost:8080`).
 
+**Note:** In a real deployment, most endpoints require authentication via Cognito. The local setup uses dummy authentication, so you don't need to provide tokens for these examples.
+
 **Example using curl:**
+
+- **Get Health Check:**
+
+  ```bash
+  curl http://localhost:8080/health
+  ```
 
 - **Get Themes:**
   ```bash
   curl http://localhost:8080/themes
   ```
-- **Create a Theme:**
+- **Create a Theme:** (Includes `supported_features` as per V1.1 design)
   ```bash
   curl -X POST http://localhost:8080/themes \
   -H "Content-Type: application/json" \
@@ -97,9 +105,18 @@ You can use tools like `curl` or Postman to send requests to the running server 
     "theme_name": "My Daily Log",
     "fields": [
       {"name": "mood", "label": "Mood", "type": "select", "required": true},
-      {"name": "notes", "label": "Notes", "type": "textarea"}
-    ]
+      {"name": "notes", "label": "Notes", "type": "textarea", "required": false}
+    ],
+    "supported_features": ["monthly_summary"]
   }'
+  ```
+- **Get a Specific Theme (replace theme_id):**
+  ```bash
+  curl http://localhost:8080/themes/<your-theme-id>
+  ```
+- **Execute a Theme Feature (replace theme_id and feature_name):**
+  ```bash
+  curl http://localhost:8080/themes/<your-theme-id>/features/monthly_summary
   ```
 - **Get Entries (replace dates):**
   ```bash

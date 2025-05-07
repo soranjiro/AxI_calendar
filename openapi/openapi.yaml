@@ -7,6 +7,21 @@ servers:
   - url: / # API Gateway stage will prepend the actual base path
 
 paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /auth/signup:
     post:
       summary: Register a new user
@@ -22,17 +37,28 @@ paths:
         "201":
           description: User successfully registered
         "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/confirm-signup:
+    post:
+      summary: Confirm user signup
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmSignupRequest"
+      responses:
+        "200":
+          description: Signup confirmed successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /auth/login:
     post:
@@ -53,23 +79,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
         "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized (invalid credentials)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Internal server error
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/logout:
+    post:
+      summary: Log out user (client-side token removal)
+      tags:
+        - Auth
+      security:
+        - CognitoAuth: [] # Requires valid token to invalidate (optional, depends on impl)
+      responses:
+        "204":
+          description: Logout successful (no content)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token using refresh token
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Tokens refreshed successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/forgot-password:
+    post:
+      summary: Initiate forgot password flow
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Forgot password code sent successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/confirm-forgot-password:
+    post:
+      summary: Confirm forgot password and set new password
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmForgotPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user's info
+      tags:
+        - Auth
+      security:
+        - CognitoAuth: []
+      responses:
+        "200":
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /themes:
     get:
@@ -88,17 +197,9 @@ paths:
                 items:
                   $ref: "#/components/schemas/Theme"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     post:
       summary: Create a new custom theme
       tags:
@@ -119,23 +220,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Theme"
         "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
 
   /themes/{theme_id}:
     get:
@@ -145,12 +234,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       responses:
         "200":
           description: Theme details
@@ -159,23 +243,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Theme"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Theme not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     put:
       summary: Update a custom theme
       tags:
@@ -183,18 +255,13 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateThemeRequest" # Define this schema
+              $ref: "#/components/schemas/UpdateThemeRequest"
       responses:
         "200":
           description: Theme updated successfully
@@ -203,35 +270,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/Theme"
         "400":
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          description: Forbidden (trying to edit default theme or not owner)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          description: Theme not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     delete:
       summary: Delete a custom theme
       tags:
@@ -239,39 +286,46 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: theme_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/ThemeIdParam"
       responses:
         "204":
           description: Theme deleted successfully
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          description: Forbidden (trying to delete default theme or not owner)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          description: Theme not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
+          $ref: "#/components/responses/InternalServerError"
+
+  /themes/{theme_id}/features/{feature_name}:
+    get:
+      summary: Execute a specific feature for a theme (e.g., aggregation)
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ThemeIdParam"
+        - $ref: "#/components/parameters/FeatureNameParam"
+      responses:
+        "200":
+          description: Feature execution result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                additionalProperties: true
+                description: The result structure depends on the executed feature.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /entries:
     get:
@@ -311,23 +365,11 @@ paths:
                 items:
                   $ref: "#/components/schemas/Entry"
         "400":
-          description: Invalid query parameters
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     post:
       summary: Create a new entry
       tags:
@@ -348,29 +390,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/Entry"
         "400":
-          description: Invalid input or validation error based on theme
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Theme not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
 
   /entries/{entry_id}:
     get:
@@ -380,12 +406,7 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       responses:
         "200":
           description: Entry details
@@ -394,23 +415,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Entry"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Entry not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     put:
       summary: Update an entry
       tags:
@@ -418,18 +427,13 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateEntryRequest" # Define this schema
+              $ref: "#/components/schemas/UpdateEntryRequest"
       responses:
         "200":
           description: Entry updated successfully
@@ -438,29 +442,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/Entry"
         "400":
-          description: Invalid input or validation error based on theme
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Entry or Theme not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
     delete:
       summary: Delete an entry
       tags:
@@ -468,36 +456,25 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: entry_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/EntryIdParam"
       responses:
         "204":
           description: Entry deleted successfully
         "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Entry not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/NotFound"
         "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   schemas:
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
     SignupRequest:
       type: object
       properties:
@@ -507,10 +484,21 @@ components:
         password:
           type: string
           format: password
-          minLength: 8 # Example constraint
+          minLength: 8
       required:
         - email
         - password
+    ConfirmSignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        confirmation_code:
+          type: string
+      required:
+        - email
+        - confirmation_code
     LoginRequest:
       type: object
       properties:
@@ -534,13 +522,58 @@ components:
           type: string
         expires_in:
           type: integer
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+    ConfirmForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        confirmation_code:
+          type: string
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+      required:
+        - email
+        - confirmation_code
+        - new_password
+    User:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+      required:
+        - user_id
+        - email
     ThemeField:
       type: object
       properties:
         name:
           type: string
           description: Internal field name (unique within theme, snake_case recommended)
-          pattern: "^[a-z0-9_]+$" # Example pattern
+          pattern: "^[a-z0-9_]+$"
         label:
           type: string
           description: Display label for the field
@@ -551,15 +584,6 @@ components:
         required:
           type: boolean
           default: false
-        # Add type-specific properties like min/max for number, options for select etc.
-        # Example for number:
-        # minimum: <number>
-        # maximum: <number>
-        # Example for select:
-        # options:
-        #   type: array
-        #   items:
-        #     type: string
       required:
         - name
         - label
@@ -580,10 +604,16 @@ components:
         is_default:
           type: boolean
           readOnly: true
-        user_id:
+        owner_user_id:
           type: string
           format: uuid
-          readOnly: true # Only for custom themes, null/absent for default
+          readOnly: true
+        supported_features:
+          type: array
+          items:
+            type: string
+          description: List of features supported by this theme (e.g., 'monthly_summary').
+          readOnly: false
         created_at:
           type: string
           format: date-time
@@ -608,13 +638,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ThemeField"
-          minItems: 1 # Must have at least one field
+          minItems: 1
+        supported_features:
+          type: array
+          items:
+            type: string
+          description: Optional list of features supported by this new theme.
       required:
         - theme_name
         - fields
     UpdateThemeRequest:
       type: object
-      description: Only theme_name and fields can be updated for custom themes.
+      description: Only theme_name, fields, and supported_features can be updated for custom themes.
       properties:
         theme_name:
           type: string
@@ -623,6 +658,11 @@ components:
           items:
             $ref: "#/components/schemas/ThemeField"
           minItems: 1
+        supported_features:
+          type: array
+          items:
+            type: string
+          description: Optional updated list of features supported by this theme.
       required:
         - theme_name
         - fields
@@ -647,7 +687,7 @@ components:
         data:
           type: object
           description: Key-value pairs based on the theme's fields definition
-          additionalProperties: true # Allows any properties initially, validation happens in handler
+          additionalProperties: true
         created_at:
           type: string
           format: date-time
@@ -684,7 +724,6 @@ components:
     UpdateEntryRequest:
       type: object
       properties:
-        # theme_id cannot be changed after creation
         entry_date:
           type: string
           format: date
@@ -703,12 +742,65 @@ components:
       required:
         - message
 
+  parameters:
+    ThemeIdParam:
+      name: theme_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of the theme
+    FeatureNameParam:
+      name: feature_name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: The identifier of the feature to execute (e.g., 'monthly_summary'). Must be listed in the theme's supported_features.
+    EntryIdParam:
+      name: entry_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of the entry
+
+  responses:
+    BadRequest:
+      description: Invalid input or validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Unauthorized (invalid credentials or token)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden (access denied)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
   securitySchemes:
     CognitoAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Authentication via Cognito JWT ID Token passed in Authorization header.
-      # For actual deployment, consider using openIdConnect with the correct URL
-      # type: openIdConnect
-      # openIdConnectUrl: https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/openid-configuration
+      type: openIdConnect
+      openIdConnectUrl: https://cognito-idp.<region>.amazonaws.com/<userPoolId>/.well-known/openid-configuration
+      description: Authentication via Cognito JWT ID Token passed in Authorization header. Requires configuration of region and userPoolId.

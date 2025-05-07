@@ -1,8 +1,13 @@
-axicalendar-api
+# exection file
+axicalendar
 
+# secret files
 secret/*
 
-.DS_Store
+# macOS
+**/.DS_Store
 
+# useless or private files
+.vscode
 *.log
 *.out
