@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/soranjiro/axicalendar/internal/interfaces/api"
-	"github.com/soranjiro/axicalendar/internal/application"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
+	"github.com/soranjiro/axicalendar/internal/usecase"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

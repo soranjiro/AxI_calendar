@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"github.com/soranjiro/axicalendar/internal/interfaces/api"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"

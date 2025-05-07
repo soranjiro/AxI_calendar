@@ -293,15 +293,15 @@ sequenceDiagram
 ## 8. ディレクトリ構成案
 
 ```
-your-project-root/
+AxI_calendar/
 ├── cmd/
 │   └── api/
 │       └── main.go         # Lambda ハンドラの main パッケージとエントリーポイント
 ├── internal/               # アプリケーション固有のコード (外部から import されない)
-│   ├── application/        # アプリケーションサービス、ユースケース
+│   ├── usecase/            # (旧 application) アプリケーションサービス、ユースケース
 │   │   ├── create_entry_usecase.go # (例)
 │   │   └── usecase.go      # (共通インターフェースやベースなど)
-│   ├── domain/             # ドメインロジック
+│   ├── domain/             # ドメインロジック (エンティティ、値オブジェクト、ドメインサービス、リポジトリインターフェース)
 │   │   ├── entry/          # エントリ関連 (Entry 構造体, バリデーション, EntryRepository インターフェース)
 │   │   │   └── entry.go
 │   │   ├── feature/        # テーマ固有機能関連 (ドメインとしての定義)
@@ -312,7 +312,7 @@ your-project-root/
 │   │   │   └── theme.go
 │   │   └── user/           # ユーザー関連 (User 構造体, UserRepository インターフェース)
 │   │       └── user.go
-│   ├── infrastructure/     # フレームワーク、ドライバ、外部サービスとの連携など具体的な実装
+│   ├── adapter/            # (旧 infrastructure) フレームワーク、ドライバ、外部サービスとの連携など具体的な実装 (リポジトリ実装、外部サービス連携クライアント)
 │   │   ├── features/       # 具体的な機能の実装群 (domain/feature/executor.go を実装)
 │   │   │   └── monthly_summary/
 │   │   │       └── executor.go # 月次集計機能の Executor 実装
@@ -324,13 +324,13 @@ your-project-root/
 │   │   │       └── dynamodb.go   # DynamoDB クライアント初期化や共通処理
 │   │   ├── auth/           # (設計概念として) 認証関連クライアント実装 (Cognito連携など)
 │   │   └── config/         # (設計概念として) 設定ファイルの読み込みなど
-│   ├── interfaces/         # 外部とのインターフェース (APIハンドラ、プレゼンターなど)
+│   ├── presentation/       # (旧 interfaces) 外部とのインターフェース (APIハンドラ、リクエスト/レスポンスの変換、プレゼンターなど)
 │   │   └── api/            # API 関連
 │   │       ├── handler/    # Echo ハンドラの実装 (e.g., theme_handler.go, entry_handler.go)
 │   │       │   ├── handler.go
 │   │       │   └── converter.go
 │   │       └── api.gen.go  # oapi-codegen が生成する ServerInterface や型定義
-├── api/                    # API 仕様定義
+├── openapi/                # API 仕様定義
 │   └── openapi.yaml
 ├── deployments/            # デプロイ関連ファイル (SAM, CloudFormation, Terraform など)
 ├── scripts/                # ビルド、デプロイなどの補助スクリプト
