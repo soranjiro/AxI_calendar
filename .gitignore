@@ -1,8 +1,8 @@
 # exection file
-axicalendar
+axicalendar-api
 
 # secret files
-secret/*
+secrets
 
 # macOS
 **/.DS_Store
