@@ -9,11 +9,11 @@ import (
 	"os"
 
 	"github.com/soranjiro/axicalendar/internal/presentation/api"
-	"github.com/soranjiro/axicalendar/internal/usecase"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"github.com/soranjiro/axicalendar/internal/presentation/api/handler/converter"
 )
 
 type contextKey string
@@ -80,11 +80,11 @@ func newApiError(statusCode int, message string, err error) error {
 
 // ApiHandler implements the api.ServerInterface using a single UseCaseInterface
 type ApiHandler struct {
-	useCase usecase.UseCaseInterface // Use the consolidated interface
+	useCase UseCase // Use the consolidated interface
 }
 
 // NewApiHandler creates a new ApiHandler with the injected use case service
-func NewApiHandler(uc usecase.UseCaseInterface) *ApiHandler {
+func NewApiHandler(uc UseCase) *ApiHandler {
 	return &ApiHandler{
 		useCase: uc,
 	}
@@ -119,7 +119,7 @@ func (h *ApiHandler) GetAuthMe(ctx echo.Context) error {
 	}
 
 	// Convert domain user to API user
-	apiUser := ToApiUser(*domainUser) // Use converter
+	apiUser := converter.ToApiUser(*domainUser) // Use converter
 
 	log.Printf("GetAuthMe called for UserID: %s", userID.String())
 	return ctx.JSON(http.StatusOK, apiUser)
@@ -178,8 +178,14 @@ func (h *ApiHandler) GetEntries(ctx echo.Context, params api.GetEntriesParams) e
 		return err // Error already formatted
 	}
 
+	// Convert params to domain types before calling use case
+	// Assuming params.ThemeId, params.StartDate, params.EndDate are already validated by Echo binding
+	themeID := params.ThemeId // This is already openapi_types.UUID which is compatible with uuid.UUID
+	startDate := params.StartDate.Time
+	endDate := params.EndDate.Time
+
 	// Call the use case method, which returns domain entries
-	domainEntries, err := h.useCase.GetEntries(ctx.Request().Context(), userID, params)
+	domainEntries, err := h.useCase.GetEntries(ctx.Request().Context(), userID, themeID, startDate, endDate)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -189,7 +195,7 @@ func (h *ApiHandler) GetEntries(ctx echo.Context, params api.GetEntriesParams) e
 	}
 
 	// Convert domain entries to API entries
-	apiEntries, err := ToApiEntries(domainEntries) // Use converter
+	apiEntries, err := converter.ToApiEntries(domainEntries) // Use converter
 	if err != nil {
 		log.Printf("Error converting domain entries to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format entries response", err)
@@ -210,7 +216,7 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 	}
 
 	// Convert API request to domain entry
-	domainEntry, err := FromApiCreateEntryRequest(apiReq, userID) // Use converter
+	domainEntry, err := converter.FromApiCreateEntryRequest(apiReq, userID) // Use converter
 	if err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid entry data format", err)
 	}
@@ -226,7 +232,7 @@ func (h *ApiHandler) PostEntries(ctx echo.Context) error {
 	}
 
 	// Convert created domain entry back to API entry
-	apiEntry, err := ToApiEntry(*createdDomainEntry) // Use converter
+	apiEntry, err := converter.ToApiEntry(*createdDomainEntry) // Use converter
 	if err != nil {
 		log.Printf("Error converting created domain entry to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format created entry response", err)
@@ -271,7 +277,7 @@ func (h *ApiHandler) GetEntriesEntryId(ctx echo.Context, entryId openapi_types.U
 	}
 
 	// Convert domain entry to API entry
-	apiEntry, err := ToApiEntry(*domainEntry) // Use converter
+	apiEntry, err := converter.ToApiEntry(*domainEntry) // Use converter
 	if err != nil {
 		log.Printf("Error converting domain entry to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format entry response", err)
@@ -291,7 +297,22 @@ func (h *ApiHandler) PutEntriesEntryId(ctx echo.Context, entryId openapi_types.U
 		return newApiError(http.StatusBadRequest, "Invalid request body", err)
 	}
 
-	updatedDomainEntry, err := h.useCase.UpdateEntry(ctx.Request().Context(), userID, entryId, apiReq)
+	// Get existing entry for conversion
+	existingDomainEntry, err := h.useCase.GetEntryByID(ctx.Request().Context(), userID, entryId)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return httpErr // Return the error directly from use case
+		}
+		return newApiError(http.StatusInternalServerError, "Failed to retrieve entry before update", err)
+	}
+
+	domainEntryUpdate, err := converter.FromApiUpdateEntryRequest(apiReq, entryId, userID, *existingDomainEntry)
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid entry data for update", err)
+	}
+
+	updatedDomainEntry, err := h.useCase.UpdateEntry(ctx.Request().Context(), userID, entryId, domainEntryUpdate) // Pass domain.Entry
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
@@ -301,7 +322,7 @@ func (h *ApiHandler) PutEntriesEntryId(ctx echo.Context, entryId openapi_types.U
 	}
 
 	// Convert updated domain entry back to API entry
-	apiEntry, err := ToApiEntry(*updatedDomainEntry) // Use converter
+	apiEntry, err := converter.ToApiEntry(*updatedDomainEntry) // Use converter
 	if err != nil {
 		log.Printf("Error converting updated domain entry to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format updated entry response", err)
@@ -329,7 +350,7 @@ func (h *ApiHandler) GetThemes(ctx echo.Context) error {
 	}
 
 	// Convert domain themes to API themes
-	apiThemes, err := ToApiThemes(domainThemes) // Use converter
+	apiThemes, err := converter.ToApiThemes(domainThemes) // Use converter
 	if err != nil {
 		log.Printf("Error converting domain themes to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format themes response", err)
@@ -350,7 +371,7 @@ func (h *ApiHandler) PostThemes(ctx echo.Context) error {
 	}
 
 	// Convert API request to domain theme
-	domainTheme, err := FromApiCreateThemeRequest(apiReq, userID) // Use converter
+	domainTheme, err := converter.FromApiCreateThemeRequest(apiReq, userID) // Use converter
 	if err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid theme data format", err)
 	}
@@ -366,7 +387,7 @@ func (h *ApiHandler) PostThemes(ctx echo.Context) error {
 	}
 
 	// Convert created domain theme back to API theme
-	apiTheme, err := ToApiTheme(*createdDomainTheme) // Use converter
+	apiTheme, err := converter.ToApiTheme(*createdDomainTheme) // Use converter
 	if err != nil {
 		log.Printf("Error converting created domain theme to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format created theme response", err)
@@ -411,7 +432,7 @@ func (h *ApiHandler) GetThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	}
 
 	// Convert domain theme to API theme
-	apiTheme, err := ToApiTheme(*domainTheme) // Use converter
+	apiTheme, err := converter.ToApiTheme(*domainTheme) // Use converter
 	if err != nil {
 		log.Printf("Error converting domain theme to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format theme response", err)
@@ -450,7 +471,7 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	}
 
 	// 2. Convert API request to domain theme using the existing theme data
-	domainThemeUpdate, err := FromApiUpdateThemeRequest(apiReq, themeId, userID, *existingDomainTheme)
+	domainThemeUpdate, err := converter.FromApiUpdateThemeRequest(apiReq, themeId, userID, *existingDomainTheme)
 	if err != nil {
 		return newApiError(http.StatusBadRequest, "Invalid theme data format", err)
 	}
@@ -466,7 +487,7 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	}
 
 	// Convert updated domain theme back to API theme
-	apiTheme, err := ToApiTheme(*updatedDomainTheme) // Use converter
+	apiTheme, err := converter.ToApiTheme(*updatedDomainTheme) // Use converter
 	if err != nil {
 		log.Printf("Error converting updated domain theme to API format: %v", err)
 		return newApiError(http.StatusInternalServerError, "Failed to format updated theme response", err)
