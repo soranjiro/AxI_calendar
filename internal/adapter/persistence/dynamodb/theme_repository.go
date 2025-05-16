@@ -76,6 +76,7 @@ func (r *dynamoDBThemeRepository) ListThemes(ctx context.Context, userID uuid.UU
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan themes: %w", err)
 		}
+		fmt.Println("DEBUG: Retrieved page with items count:", len(page.Items))
 		var pageThemes []theme.Theme
 		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageThemes); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal themes: %w", err)

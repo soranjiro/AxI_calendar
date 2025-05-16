@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,7 +22,7 @@ type dynamoDBEntryRepository struct {
 }
 
 // NewEntryRepository creates a new DynamoDB-backed EntryRepository.
-func NewEntryRepository(dbClient *DynamoDBClient) EntryRepository {
+func NewEntryRepository(dbClient *DynamoDBClient) entry.Repository { // Changed EntryRepository to entry.Repository
 	return &dynamoDBEntryRepository{dbClient: dbClient}
 }
 
@@ -93,40 +92,28 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 
 // ListEntriesByDateRange retrieves entries for a user within a specific date range.
 // Uses GSI1 (PK=USER#<user_id>, SK between ENTRY_DATE#<start_date> and ENTRY_DATE#<end_date>)
-// Optionally filters by theme IDs.
-func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]entry.Entry, error) {
+// Filters by a mandatory theme ID (uses the first from the slice).
+func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeID uuid.UUID) ([]entry.Entry, error) {
 	gsi1pk := userGSI1PK(userID.String())
 	startSK := entryDateSKPrefix(startDate.Format("2006-01-02")) // ENTRY_DATE#YYYY-MM-DD
 	endSK := entryDateSKPrefix(endDate.Format("2006-01-02"))     // ENTRY_DATE#YYYY-MM-DD
 
-	log.Printf("Listing entries for user %s from %s to %s", userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	log.Printf("Listing entries for user %s from %s to %s, theme %s", userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), themeID)
 
 	keyCondExpr := "GSI1PK = :pkval AND GSI1SK BETWEEN :startsk AND :endsk"
+	filterExprStr := "ThemeID = :themeId"
 	exprAttrValues := map[string]types.AttributeValue{
 		":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
 		":startsk": &types.AttributeValueMemberS{Value: startSK},
 		":endsk":   &types.AttributeValueMemberS{Value: endSK + "\uffff"}, // Use high-codepoint char for inclusive end range
-	}
-
-	var filterExpr *string
-	// Build filter expression if themeIDs are provided
-	if len(themeIDs) > 0 {
-		var filterPlaceholders []string
-		for i, themeID := range themeIDs {
-			placeholder := fmt.Sprintf(":theme%d", i)
-			filterPlaceholders = append(filterPlaceholders, placeholder)
-			exprAttrValues[placeholder] = &types.AttributeValueMemberS{Value: themeID.String()}
-		}
-		filterExprStr := fmt.Sprintf("ThemeID IN (%s)", strings.Join(filterPlaceholders, ", "))
-		filterExpr = aws.String(filterExprStr)
-		log.Printf("Filtering entries by theme IDs: %v", themeIDs)
+		":themeId": &types.AttributeValueMemberS{Value: themeID.String()},
 	}
 
 	queryInput := &dynamodb.QueryInput{
 		TableName:                 aws.String(r.dbClient.TableName),
 		IndexName:                 aws.String("GSI1"),
 		KeyConditionExpression:    aws.String(keyCondExpr),
-		FilterExpression:          filterExpr, // Add filter expression if themes are specified
+		FilterExpression:          aws.String(filterExprStr),
 		ExpressionAttributeValues: exprAttrValues,
 	}
 

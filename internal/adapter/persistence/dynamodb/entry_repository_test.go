@@ -98,11 +98,12 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_Success(t *testing.T) {
 	repo, mockDB := setupEntryRepoTest()
 	ctx := context.Background()
 	testUserID := uuid.New()
+	themeID := uuid.New()
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
 
-	entry1 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: uuid.New()}
-	entry2 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-20", ThemeID: uuid.New()}
+	entry1 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: themeID}
+	entry2 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-20", ThemeID: themeID}
 	item1, _ := attributevalue.MarshalMap(entry1)
 	item2, _ := attributevalue.MarshalMap(entry2)
 
@@ -110,10 +111,10 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_Success(t *testing.T) {
 		return *input.TableName == repo.dbClient.TableName &&
 			*input.IndexName == "GSI1" &&
 			*input.KeyConditionExpression == "GSI1PK = :pkval AND GSI1SK BETWEEN :startsk AND :endsk" &&
-			input.FilterExpression == nil // No theme filter
+			*input.FilterExpression == "ThemeID = :themeId"
 	})).Return(&dynamodb.QueryOutput{Items: []map[string]types.AttributeValue{item1, item2}, Count: 2}, nil)
 
-	entries, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, nil)
+	entries, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, themeID)
 
 	assert.NoError(t, err)
 	assert.Len(t, entries, 2)
@@ -129,21 +130,33 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_WithThemeFilter(t *testi
 	themeID1 := uuid.New()
 
 	entry1 := entry.Entry{EntryID: uuid.New(), UserID: testUserID, EntryDate: "2024-01-10", ThemeID: themeID1}
-	// entry2 has themeID2, should be filtered out by mock setup if filter works
 	item1, _ := attributevalue.MarshalMap(entry1)
 
 	mockDB.On("Query", ctx, mock.MatchedBy(func(input *dynamodb.QueryInput) bool {
 		return input.FilterExpression != nil &&
-			*input.FilterExpression == "ThemeID IN (:theme0)" && // Check filter expression
-			len(input.ExpressionAttributeValues) == 4 // :pkval, :startsk, :endsk, :theme0
+			*input.FilterExpression == "ThemeID = :themeId" &&
+			len(input.ExpressionAttributeValues) == 4
 	})).Return(&dynamodb.QueryOutput{Items: []map[string]types.AttributeValue{item1}, Count: 1}, nil)
 
-	entries, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, []uuid.UUID{themeID1})
+	entries, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, themeID1)
 
 	assert.NoError(t, err)
 	assert.Len(t, entries, 1)
 	assert.Equal(t, themeID1, entries[0].ThemeID)
 	mockDB.AssertExpectations(t)
+}
+
+func TestDynamoDBEntryRepository_ListEntriesByDateRange_EmptyThemeIDs(t *testing.T) {
+	repo, _ := setupEntryRepoTest()
+	ctx := context.Background()
+	testUserID := uuid.New()
+	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2024, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	_, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, uuid.Nil)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "themeID is required to list entries")
 }
 
 func TestDynamoDBEntryRepository_CreateEntry_Success(t *testing.T) {
