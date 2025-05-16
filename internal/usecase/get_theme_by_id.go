@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // GetThemeByID handles the logic for getting a single theme by its ID.
