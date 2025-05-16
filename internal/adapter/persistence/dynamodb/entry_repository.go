@@ -36,7 +36,6 @@ func NewEntryRepository(dbClient *DynamoDBClient) entry.Repository { // Changed 
 // We will query GSI1 (PK=USER#<user_id>, SK=ENTRY_DATE#<date>#<entry_id>) and filter.
 func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*entry.Entry, error) {
 	gsi1pk := userGSI1PK(userID.String())
-	entryIDStr := entryID.String()
 
 	log.Printf("Getting entry by ID %s for user %s using GSI1 scan/filter", entryID, userID)
 
@@ -47,7 +46,7 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 		FilterExpression:       aws.String("EntryID = :entryId"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
-			":entryId": &types.AttributeValueMemberS{Value: entryIDStr},
+			":entryId": &types.AttributeValueMemberB{Value: entryID[:]},
 		},
 	}
 
