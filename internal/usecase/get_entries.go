@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,7 +29,8 @@ func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, themeID uui
 		// Log the internal error if needed
 		// log.Printf("Error fetching entries from repository: %v", err)
 		// Return a generic error to the handler
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: err.Error()})
+		log.Printf("Error fetching entries from repository: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entries"})
 	}
 
 	// Return domain models directly

@@ -3,13 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // GetEntryByID handles the logic for getting a single entry by its ID.
@@ -21,7 +22,8 @@ func (uc *UseCase) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID u
 			return nil, echo.NewHTTPError(http.StatusNotFound, api.Error{Message: "Entry not found"})
 		}
 		// Log internal error if needed
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: err.Error()})
+		log.Printf("Error fetching entry from repository: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entry"})
 	}
 
 	// Return domain model directly

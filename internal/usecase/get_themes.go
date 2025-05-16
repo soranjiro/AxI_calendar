@@ -2,12 +2,13 @@ package usecase
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // GetThemes handles the logic for getting all themes accessible by the user.
@@ -16,7 +17,8 @@ func (uc *UseCase) GetThemes(ctx context.Context, userID uuid.UUID) ([]theme.The
 	themes, err := uc.themeRepo.ListThemes(ctx, userID)
 	if err != nil {
 		// Log internal error if needed
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: err.Error()})
+		log.Printf("Error fetching themes from repository: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve themes"})
 	}
 
 	// Return domain models directly
