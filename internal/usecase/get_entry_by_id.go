@@ -21,7 +21,7 @@ func (uc *UseCase) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID u
 			return nil, echo.NewHTTPError(http.StatusNotFound, api.Error{Message: "Entry not found"})
 		}
 		// Log internal error if needed
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entry"})
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: err.Error()})
 	}
 
 	// Return domain model directly
