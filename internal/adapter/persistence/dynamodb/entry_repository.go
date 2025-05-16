@@ -452,3 +452,38 @@ func (r *dynamoDBEntryRepository) DeleteEntry(ctx context.Context, userID uuid.U
 	log.Printf("Successfully deleted entry %s for user %s", entryID, userID)
 	return nil
 }
+
+// CountEntriesByThemeAndDateRange counts entries for a specific user, theme, and date range.
+// Uses GSI1 (PK=USER#<user_id>, SK between ENTRY_DATE#<start_date>#<theme_id> and ENTRY_DATE#<end_date>#<theme_id>)
+func (r *dynamoDBEntryRepository) CountEntriesByThemeAndDateRange(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate, endDate time.Time) (int64, error) {
+	gsi1pk := userGSI1PK(userID.String())
+	// Construct SK range for GSI1. SK is ENTRY_DATE#<date>#<theme_id>
+	startSK := entryGSI1SK(startDate.Format("2006-01-02"), themeID.String())
+	endSK := entryGSI1SK(endDate.Format("2006-01-02"), themeID.String())
+
+	queryInput := &dynamodb.QueryInput{
+		TableName:              aws.String(r.dbClient.TableName),
+		IndexName:              aws.String("GSI1"),
+		KeyConditionExpression: aws.String("GSI1PK = :pkval AND GSI1SK BETWEEN :startsk AND :endsk"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
+			":startsk": &types.AttributeValueMemberS{Value: startSK},
+			":endsk":   &types.AttributeValueMemberS{Value: endSK + "\uffff"}, // Inclusive end range for SK
+		},
+		Select: types.SelectCount, // Only count the items
+	}
+
+	var totalCount int64 = 0
+	paginator := dynamodb.NewQueryPaginator(r.dbClient.Client, queryInput)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			// Consider logging this error to a persistent log store in production
+			return 0, fmt.Errorf("failed to count entries: %w", err)
+		}
+		totalCount += int64(page.Count) // Add the count from the current page
+	}
+
+	return totalCount, nil
+}

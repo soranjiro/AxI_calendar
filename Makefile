@@ -126,14 +126,14 @@ delete-table:
 
 # Code Generation
 gen:
-	@echo "Generating Go code from OpenAPI spec (api/openapi.yaml)..."
+	@echo "Generating Go code from OpenAPI spec (openapi/openapi.yaml)..."
 	@if ! command -v $(OAPI_CODEGEN_CMD) > /dev/null 2>&1; then \
 		echo "Error: $(OAPI_CODEGEN_CMD) command not found."; \
 		echo "Please install it: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest"; \
 		exit 1; \
 	fi
-	$(OAPI_CODEGEN_CMD) -generate types,server -package api -o internal/api/api.gen.go api/openapi.yaml
-	@echo "Code generation complete: internal/api/api.gen.go"
+	$(OAPI_CODEGEN_CMD) -generate types,server -package api -o internal/presentation/api/api.gen.go openapi/openapi.yaml
+	@echo "Code generation complete: internal/presentation/api/api.gen.go"
 
 # Lint the code
 lint:

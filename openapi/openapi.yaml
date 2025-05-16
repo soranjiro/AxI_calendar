@@ -327,6 +327,45 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /themes/{theme_id}/entries/count:
+    get:
+      summary: Get the number of entries for a specific theme within a date range
+      tags:
+        - Themes
+      security:
+        - CognitoAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ThemeIdParam"
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Number of entries for the theme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryCountResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /entries:
     get:
       summary: List entries within a date range
@@ -741,6 +780,15 @@ components:
           type: string
       required:
         - message
+    EntryCountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+          description: The number of entries.
+      required:
+        - count
 
   parameters:
     ThemeIdParam:
