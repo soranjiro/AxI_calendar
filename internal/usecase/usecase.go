@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
+	openapi_types "github.com/oapi-codegen/runtime/types"
+	dynamodbrepo "github.com/soranjiro/axicalendar/internal/adapter/persistence/dynamodb"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"
-	dynamodbrepo "github.com/soranjiro/axicalendar/internal/adapter/persistence/dynamodb"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // UseCaseInterface defines the methods for all use cases.
@@ -39,6 +40,9 @@ type UseCaseInterface interface {
 	UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, updatedThemeData theme.Theme) (*theme.Theme, error)
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
+
+	// GetEntryCountForTheme returns the number of entries for a specific theme within a date range.
+	GetEntryCountForTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate, endDate openapi_types.Date) (int64, error)
 }
 
 // UseCase implements the UseCaseInterface.

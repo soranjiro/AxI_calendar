@@ -475,6 +475,26 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
+// GetThemesThemeIdEntriesCount retrieves the number of entries for a specific theme within a date range.
+func (h *ApiHandler) GetThemesThemeIdEntriesCount(ctx echo.Context, themeId openapi_types.UUID, params api.GetThemesThemeIdEntriesCountParams) error {
+	userID, err := GetUserIDFromContext(ctx.Request().Context())
+	if err != nil {
+		return err // Error already formatted
+	}
+
+	count, err := h.useCase.GetEntryCountForTheme(ctx.Request().Context(), userID, themeId, params.StartDate, params.EndDate)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return httpErr
+		}
+		// Consider logging the original error 'err' here in production for more details
+		return newApiError(http.StatusInternalServerError, "Failed to count entries for theme", err)
+	}
+
+	return ctx.JSON(http.StatusOK, api.EntryCountResponse{Count: count})
+}
+
 // GetThemesThemeIdFeaturesFeatureName retrieves details about a specific feature supported by a theme.
 // Placeholder implementation.
 func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error {

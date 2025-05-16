@@ -20,6 +20,9 @@ type EntryRepository interface {
 	UpdateEntry(ctx context.Context, entry *entry.Entry) error
 	// DeleteEntry requires entryDate because it's part of the SK.
 	DeleteEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, entryDate string) error
+
+	// CountEntriesByThemeAndDateRange counts entries for a user, theme, and date range.
+	CountEntriesByThemeAndDateRange(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate, endDate time.Time) (int64, error)
 }
 
 // ThemeRepository defines the interface for theme data operations.
