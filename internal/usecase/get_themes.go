@@ -16,7 +16,7 @@ func (uc *UseCase) GetThemes(ctx context.Context, userID uuid.UUID) ([]theme.The
 	themes, err := uc.themeRepo.ListThemes(ctx, userID)
 	if err != nil {
 		// Log internal error if needed
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve themes"})
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: err.Error()})
 	}
 
 	// Return domain models directly
