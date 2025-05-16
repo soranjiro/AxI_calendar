@@ -97,7 +97,12 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 	gsi1pk := userGSI1PK(userID.String())
 	startSK := entryDateSKPrefix(startDate.Format("2006-01-02")) // ENTRY_DATE#YYYY-MM-DD
 	endSK := entryDateSKPrefix(endDate.Format("2006-01-02"))     // ENTRY_DATE#YYYY-MM-DD
-
+	if startDate.After(endDate) {
+		return nil, errors.New("start date cannot be after end date")
+	}
+	if themeID == uuid.Nil {
+		return nil, errors.New("theme ID is required to filter entries")
+	}
 	log.Printf("Listing entries for user %s from %s to %s, theme %s", userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), themeID)
 
 	keyCondExpr := "GSI1PK = :pkval AND GSI1SK BETWEEN :startsk AND :endsk"
@@ -106,7 +111,7 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 		":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
 		":startsk": &types.AttributeValueMemberS{Value: startSK},
 		":endsk":   &types.AttributeValueMemberS{Value: endSK + "\uffff"}, // Use high-codepoint char for inclusive end range
-		":themeId": &types.AttributeValueMemberS{Value: themeID.String()},
+		":themeId": &types.AttributeValueMemberB{Value: themeID[:]},
 	}
 
 	queryInput := &dynamodb.QueryInput{
@@ -143,6 +148,9 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 // GetEntriesForSummary retrieves entries for a specific user, theme, and year-month (YYYY-MM).
 // Uses GSI1 (PK=USER#<user_id>, SK starts with ENTRY_DATE#<year_month>) and filters by ThemeID.
 func (r *dynamoDBEntryRepository) GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]entry.Entry, error) {
+	if themeID == uuid.Nil {
+		return nil, errors.New("theme ID is required to filter entries")
+	}
 	// Validate yearMonth format (YYYY-MM)
 	if len(yearMonth) != 7 || yearMonth[4] != '-' {
 		return nil, errors.New("invalid yearMonth format, expected YYYY-MM")
@@ -150,7 +158,6 @@ func (r *dynamoDBEntryRepository) GetEntriesForSummary(ctx context.Context, user
 
 	gsi1pk := userGSI1PK(userID.String())
 	skPrefix := entryDateSKPrefix(yearMonth) // ENTRY_DATE#YYYY-MM
-	themeIDStr := themeID.String()
 
 	log.Printf("Listing entries for summary: user %s, theme %s, yearMonth %s", userID, themeID, yearMonth)
 
@@ -159,7 +166,7 @@ func (r *dynamoDBEntryRepository) GetEntriesForSummary(ctx context.Context, user
 	exprAttrValues := map[string]types.AttributeValue{
 		":pkval":    &types.AttributeValueMemberS{Value: gsi1pk},
 		":skprefix": &types.AttributeValueMemberS{Value: skPrefix},
-		":themeId":  &types.AttributeValueMemberS{Value: themeIDStr},
+		":themeId":  &types.AttributeValueMemberB{Value: themeID[:]},
 	}
 
 	queryInput := &dynamodb.QueryInput{
