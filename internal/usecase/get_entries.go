@@ -15,6 +15,9 @@ import (
 // Returns domain entries.
 func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate time.Time, endDate time.Time) ([]entry.Entry, error) {
 	// Basic date validation
+	if startDate.IsZero() || endDate.IsZero() {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "start_date and end_date cannot be zero"})
+	}
 	if endDate.Before(startDate) {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "end_date cannot be before start_date"})
 	}
