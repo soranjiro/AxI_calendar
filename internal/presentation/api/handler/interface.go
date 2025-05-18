@@ -2,11 +2,13 @@ package handler
 
 import (
 	"context"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
+	"github.com/soranjiro/axicalendar/internal/domain/feature"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"
-	"time"
 )
 
 type UseCase interface {
@@ -36,4 +38,8 @@ type UseCase interface {
 	UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, updatedThemeData theme.Theme) (*theme.Theme, error)
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
+
+	// Features
+	// Executes a registered feature and returns its analysis result
+	ExecuteFeature(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, featureName string) (feature.AnalysisResult, error)
 }
