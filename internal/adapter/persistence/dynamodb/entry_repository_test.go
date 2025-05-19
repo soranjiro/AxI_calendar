@@ -156,7 +156,7 @@ func TestDynamoDBEntryRepository_ListEntriesByDateRange_EmptyThemeIDs(t *testing
 	_, err := repo.ListEntriesByDateRange(ctx, testUserID, startDate, endDate, uuid.Nil)
 
 	assert.Error(t, err)
-	assert.EqualError(t, err, "themeID is required to list entries")
+	assert.EqualError(t, err, "theme ID is required to filter entries")
 }
 
 func TestDynamoDBEntryRepository_CreateEntry_Success(t *testing.T) {
