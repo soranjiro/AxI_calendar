@@ -23,13 +23,13 @@ func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, themeID uui
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "end_date cannot be before start_date"})
 	}
 
-	// Call repository with time.Time dates and themeID as a slice
-	entries, err := uc.entryRepo.ListEntriesByDateRange(ctx, userID, startDate, endDate, themeID)
+	// Call the EntryService
+	entries, err := uc.entryService.GetEntries(ctx, userID, themeID, startDate, endDate)
 	if err != nil {
 		// Log the internal error if needed
 		// log.Printf("Error fetching entries from repository: %v", err)
 		// Return a generic error to the handler
-		log.Printf("Error fetching entries from repository: %v", err)
+		log.Printf("Error fetching entries from service: %v", err)
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entries"})
 	}
 

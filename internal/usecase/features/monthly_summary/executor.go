@@ -2,6 +2,7 @@ package monthly_summary
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
@@ -23,23 +24,11 @@ func (e *MonthlySummaryExecutor) Execute(ctx context.Context, entries []entry.En
 	summary := make(map[string]int) // Map of "YYYY-MM" to count
 
 	for _, ent := range entries {
-		// Assuming entries have a date field we can use for grouping.
-		// We need a way to reliably get the primary date field from an entry.
-		// For now, let's assume a field named "date" exists and is a time.Time.
-		// This part might need refinement based on how entry data is structured.
-		dateValue, ok := ent.Data["date"]
-		if !ok {
-			// Skip entries without a date field or handle differently
-			continue
+		// Parse the EntryDate string to time.Time
+		entryDate, err := time.Parse("2006-01-02", ent.EntryDate)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse entry date '%s': %w", ent.EntryDate, err)
 		}
-
-		entryDate, ok := dateValue.(time.Time)
-		if !ok {
-			// Skip entries where 'date' is not a time.Time or handle conversion
-			// Consider parsing from string if stored as string
-			continue
-		}
-
 		monthKey := entryDate.Format("2006-01") // Format as YYYY-MM
 		summary[monthKey]++
 	}
