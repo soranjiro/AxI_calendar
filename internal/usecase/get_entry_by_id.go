@@ -16,7 +16,7 @@ import (
 // GetEntryByID handles the logic for getting a single entry by its ID.
 // Returns a domain entry.
 func (uc *UseCase) GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*entry.Entry, error) {
-	e, err := uc.entryRepo.GetEntryByID(ctx, userID, entryID)
+	e, err := uc.entryService.GetEntryByID(ctx, userID, entryID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) { // Use domain error
 			return nil, echo.NewHTTPError(http.StatusNotFound, api.Error{Message: "Entry not found"})

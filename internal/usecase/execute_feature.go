@@ -13,7 +13,7 @@ import (
 // It fetches entries for the specified user and theme.
 func (uc *UseCase) ExecuteFeature(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, featureName string) (feature.AnalysisResult, error) {
 	// Get the theme to check if the feature is supported
-	theme, err := uc.GetThemeByID(ctx, userID, themeID)
+	theme, err := uc.themeService.GetThemeByID(ctx, userID, themeID) // Use themeService
 	if err != nil {
 		// Consider returning a more specific error, e.g., not found or forbidden
 		return nil, fmt.Errorf("failed to get theme %s: %w", themeID, err)
@@ -36,13 +36,12 @@ func (uc *UseCase) ExecuteFeature(ctx context.Context, userID uuid.UUID, themeID
 	if err != nil {
 		return nil, fmt.Errorf("failed to get executor for feature '%s': %w", featureName, err)
 	}
-	
+
 	startDate := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) // Far past
 	endDate := time.Now().AddDate(100, 0, 0)                 // Far future
 
-	// Use the GetEntries method from the use case, which should delegate to the entry repository.
-	// This assumes GetEntries can filter by userID and themeID.
-	entries, err := uc.GetEntries(ctx, userID, themeID, startDate, endDate)
+	// Use the GetEntries method from the entry service.
+	entries, err := uc.entryService.GetEntries(ctx, userID, themeID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch entries for feature '%s' (theme: %s): %w", featureName, themeID, err)
 	}

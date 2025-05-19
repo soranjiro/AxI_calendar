@@ -15,7 +15,7 @@ import (
 // GetThemeByID handles the logic for getting a single theme by its ID.
 // Returns a domain theme.
 func (uc *UseCase) GetThemeByID(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*theme.Theme, error) {
-	th, err := uc.themeRepo.GetThemeByID(ctx, userID, themeID)
+	th, err := uc.themeService.GetThemeByID(ctx, userID, themeID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) || errors.Is(err, domain.ErrForbidden) { // Use domain errors
 			// Treat forbidden as not found from the user's perspective for GET
