@@ -171,9 +171,6 @@ type EndDateParam = openapi_types.Date
 // EntryIdParam defines model for EntryIdParam.
 type EntryIdParam = openapi_types.UUID
 
-// FeatureNameParam defines model for FeatureNameParam.
-type FeatureNameParam = string
-
 // StartDateParam defines model for StartDateParam.
 type StartDateParam = openapi_types.Date
 
@@ -299,9 +296,9 @@ type ServerInterface interface {
 	// Update a custom theme
 	// (PUT /themes/{theme_id})
 	PutThemesThemeId(ctx echo.Context, themeId ThemeIdParam) error
-	// Execute a specific feature for a theme (e.g., aggregation)
-	// (GET /themes/{theme_id}/features/{feature_name})
-	GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId ThemeIdParam, featureName FeatureNameParam) error
+	// Get the count of entries for a specific theme
+	// (GET /themes/{theme_id}/Count)
+	GetThemesThemeIdCount(ctx echo.Context, themeId ThemeIdParam) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -569,8 +566,8 @@ func (w *ServerInterfaceWrapper) PutThemesThemeId(ctx echo.Context) error {
 	return err
 }
 
-// GetThemesThemeIdFeaturesFeatureName converts echo context to params.
-func (w *ServerInterfaceWrapper) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context) error {
+// GetThemesThemeIdCount converts echo context to params.
+func (w *ServerInterfaceWrapper) GetThemesThemeIdCount(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
 	var themeId ThemeIdParam
@@ -580,18 +577,10 @@ func (w *ServerInterfaceWrapper) GetThemesThemeIdFeaturesFeatureName(ctx echo.Co
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter theme_id: %s", err))
 	}
 
-	// ------------- Path parameter "feature_name" -------------
-	var featureName FeatureNameParam
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "feature_name", runtime.ParamLocationPath, ctx.Param("feature_name"), &featureName)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter feature_name: %s", err))
-	}
-
 	ctx.Set(CognitoAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetThemesThemeIdFeaturesFeatureName(ctx, themeId, featureName)
+	err = w.Handler.GetThemesThemeIdCount(ctx, themeId)
 	return err
 }
 
@@ -642,6 +631,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/themes/:theme_id", wrapper.DeleteThemesThemeId)
 	router.GET(baseURL+"/themes/:theme_id", wrapper.GetThemesThemeId)
 	router.PUT(baseURL+"/themes/:theme_id", wrapper.PutThemesThemeId)
-	router.GET(baseURL+"/themes/:theme_id/features/:feature_name", wrapper.GetThemesThemeIdFeaturesFeatureName)
+	router.GET(baseURL+"/themes/:theme_id/Count", wrapper.GetThemesThemeIdCount)
 
 }

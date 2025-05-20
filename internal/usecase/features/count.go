@@ -4,32 +4,31 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
-	"github.com/soranjiro/axicalendar/internal/repository"
 )
 
 type CountFeature string
 
 const (
-	Summation CountFeature = "summation"
+	Summation         CountFeature = "summation"
 	DiscountSummation CountFeature = "discount_summation"
 )
 
+// Features 構造体を定義
+type Features struct{}
 
-func (f *Features) Count(ctx context.Context, theme theme.Theme, entries entries) (int64, error) {
+func (f *Features) Count(ctx context.Context, th theme.Theme, entries entry.Entries) (int64, error) {
 	// 1. Check supported_features
-	switch (theme.SupportedFeatures) {
-	case Summation:
-		// Handle summation
-		entries.summation()
-	case DiscountSummation:
-		// Handle discount summation
-		entries.discountSummation()
+	for _, feature := range th.SupportedFeatures {
+		switch feature {
+		case string(Summation):
+			// Handle summation
+			return entries.Summation(), nil
+		case string(DiscountSummation):
+			// Handle discount summation
+			return entries.DiscountSummation(), nil
+		}
 	}
-
-	return count, nil
+	return 0, fmt.Errorf("no supported count feature found in theme: %v", th.SupportedFeatures)
 }
