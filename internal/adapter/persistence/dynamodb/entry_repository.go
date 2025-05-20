@@ -46,7 +46,7 @@ func (r *dynamoDBEntryRepository) GetEntryByID(ctx context.Context, userID uuid.
 		FilterExpression:       aws.String("EntryID = :entryId"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
-			":entryId": &types.AttributeValueMemberB{Value: entryID[:]},
+			":entryId": &types.AttributeValueMemberS{Value: entryID.String()},
 		},
 	}
 
@@ -110,7 +110,7 @@ func (r *dynamoDBEntryRepository) ListEntriesByDateRange(ctx context.Context, us
 		":pkval":   &types.AttributeValueMemberS{Value: gsi1pk},
 		":startsk": &types.AttributeValueMemberS{Value: startSK},
 		":endsk":   &types.AttributeValueMemberS{Value: endSK + "\uffff"}, // Use high-codepoint char for inclusive end range
-		":themeId": &types.AttributeValueMemberB{Value: themeID[:]},
+		":themeId": &types.AttributeValueMemberS{Value: themeID.String()},
 	}
 
 	queryInput := &dynamodb.QueryInput{

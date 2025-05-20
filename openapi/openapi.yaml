@@ -299,25 +299,24 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /themes/{theme_id}/features/{feature_name}:
+  /themes/{theme_id}/count:
     get:
-      summary: Execute a specific feature for a theme (e.g., aggregation)
+      summary: Count entries for a theme within a date range
       tags:
         - Themes
       security:
         - CognitoAuth: []
       parameters:
         - $ref: "#/components/parameters/ThemeIdParam"
-        - $ref: "#/components/parameters/FeatureNameParam"
+        - $ref: "#/components/parameters/StartDateParam"
+        - $ref: "#/components/parameters/EndDateParam"
       responses:
         "200":
-          description: Feature execution result
+          description: Count of entries for the theme
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                description: The result structure depends on the executed feature.
+                $ref: "#/components/schemas/ThemeEntryCountResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -717,6 +716,25 @@ components:
       required:
         - entry_date
         - data
+    ThemeEntryCountResponse: #countAPIのレスポンスよくわからんけどこの形にしてる．冗長かもやから後で削ってもいいかも
+      type: object
+      properties:
+        theme_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        count:
+          type: float
+      required:
+        - theme_id
+        - start_date
+        - end_date
+        - count
     Error:
       type: object
       properties:

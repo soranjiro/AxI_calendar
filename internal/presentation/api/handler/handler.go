@@ -496,15 +496,32 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
-// GetThemesThemeIdFeaturesFeatureName retrieves details about a specific feature supported by a theme.
-// Placeholder implementation.
-func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error {
+
+func (h *ApiHandler) GetThemesThemeIdCount(ctx echo.Context, themeId openapi_types.UUID, params api.GetThemesThemeIdCountParams) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
-		return err
+		return err // Already formatted echo.HTTPError
 	}
 
-	log.Printf("GetThemesThemeIdFeaturesFeatureName called for ThemeID: %s, Feature: %s, UserID: %s (Not Implemented - Requires Feature Use Case)", themeId, featureName, userID)
+	startDate := params.StartDate.Time
+	endDate := params.EndDate.Time
 
-	return newApiError(http.StatusNotImplemented, fmt.Sprintf("Feature '%s' details not implemented for theme '%s'", featureName, themeId), nil)
+	// Call the use case method with userID, themeId, startDate, endDate
+	count, err := h.useCase.CountThemeEntries(ctx.Request().Context(), userID, themeId, startDate, endDate)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return httpErr // Return the error directly from use case
+		}
+		return newApiError(http.StatusInternalServerError, "Failed to count theme entries", err)
+	}
+
+	// Convert result to api.ThemeEntryCountResponse
+	apiResponse := api.ThemeEntryCountResponse{
+		ThemeId:   themeId,
+		StartDate: params.StartDate,
+		EndDate:   params.EndDate,
+		Count:     count,
+	}
+	return ctx.JSON(http.StatusOK, apiResponse)
 }

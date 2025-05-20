@@ -10,9 +10,11 @@ import (
 	"time"      // タイムアウト処理のためにインポート
 
 	repo "github.com/soranjiro/axicalendar/internal/adapter/persistence/dynamodb"
+	"github.com/soranjiro/axicalendar/internal/domain/feature" // feature をインポート
 	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/presentation/api/handler"
 	"github.com/soranjiro/axicalendar/internal/usecase"
+	"github.com/soranjiro/axicalendar/internal/usecase/services"                 // services をインポート
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware" // ミドルウェアパッケージをインポート
@@ -35,8 +37,15 @@ func main() {
 	themeRepo := repo.NewThemeRepository(dbClient)
 	entryRepo := repo.NewEntryRepository(dbClient)
 
+	// Initialize Feature Executor Registry
+	featureRegistry := feature.NewInMemoryExecutorRegistry()
+
+	// Initialize Services
+	entryService := services.NewEntryService(entryRepo)
+	themeService := services.NewThemeService(themeRepo)
+
 	// Initialize Use Case (using the consolidated constructor)
-	uc := usecase.NewUseCase(themeRepo, entryRepo)
+	uc := usecase.NewUseCase(themeRepo, entryRepo, featureRegistry, entryService, themeService) // featureRegistry, entryService, themeService を渡す
 
 	// Initialize Handlers
 	// Pass the single use case interface

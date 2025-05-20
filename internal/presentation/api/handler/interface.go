@@ -2,11 +2,12 @@ package handler
 
 import (
 	"context"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"
-	"time"
 )
 
 type UseCase interface {
@@ -36,4 +37,7 @@ type UseCase interface {
 	UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, updatedThemeData theme.Theme) (*theme.Theme, error)
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
+
+	// CountThemeEntries counts entries for a theme within a date range.
+	CountThemeEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate time.Time, endDate time.Time) (float64, error)
 }

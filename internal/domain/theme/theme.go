@@ -138,6 +138,7 @@ func ValidateSupportedFeatures(features []string) error {
 	validFeatures := map[string]bool{
 		"monthly_summary":      true,
 		"category_aggregation": true,
+		"SumAll":               true, // Add "SumAll" here
 		// Add other known valid features here
 	}
 	names := make(map[string]bool)

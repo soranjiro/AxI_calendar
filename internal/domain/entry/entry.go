@@ -24,7 +24,7 @@ type Entry struct {
 	UpdatedAt time.Time              `dynamodbav:"UpdatedAt"`
 	// GSI1 Keys for querying by date range
 	GSI1PK string `dynamodbav:"GSI1PK"` // Same as PK: USER#<user_id>
-	GSI1SK string `dynamodbav:"GSI1SK"` // ENTRY_DATE#<entry_date>#<theme_id>#<entry_id> (Updated based on design doc GSI-1)
+	GSI1SK string `dynamodbav:"GSI1SK"` // ENTRY_DATE#<entry_date>#<entry_id>
 }
 
 // ValidateDataAgainstTheme checks if the entry's data matches the theme's field definitions.
