@@ -299,27 +299,26 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /themes/{theme_id}/features/{feature_name}:
+  /themes/{theme_id}/Count:
     get:
-      summary: Execute a specific feature for a theme (e.g., aggregation)
+      summary: Get the count of entries for a specific theme
       tags:
         - Themes
       security:
         - CognitoAuth: []
       parameters:
         - $ref: "#/components/parameters/ThemeIdParam"
-        - $ref: "#/components/parameters/FeatureNameParam"
       responses:
         "200":
-          description: Feature execution result
+          description: Count of entries for the theme
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: true
-                description: The result structure depends on the executed feature.
-        "400":
-          $ref: "#/components/responses/BadRequest"
+                properties:
+                  count:
+                    type: integer
+                    example: 42
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":

@@ -117,3 +117,4 @@ type Repository interface {
 	DeleteEntry(ctx context.Context, userID, entryID uuid.UUID, entryDate string) error
 	GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]Entry, error)
 }
+

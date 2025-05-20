@@ -496,15 +496,23 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
-// GetThemesThemeIdFeaturesFeatureName retrieves details about a specific feature supported by a theme.
-// Placeholder implementation.
-func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error {
+// GetEntriesCount retrieves the count of entries for a specific theme.
+func (h *ApiHandler) GetEntriesCount(ctx echo.Context, themeId openapi_types.UUID) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
 		return err
 	}
 
-	log.Printf("GetThemesThemeIdFeaturesFeatureName called for ThemeID: %s, Feature: %s, UserID: %s (Not Implemented - Requires Feature Use Case)", themeId, featureName, userID)
+	count, err := h.useCase.GetEntriesCount(ctx.Request().Context(), userID, themeId)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return httpErr // Return the error directly from use case
+		}
+		return newApiError(http.StatusInternalServerError, "Failed to retrieve entries count", err)
+	}
 
-	return newApiError(http.StatusNotImplemented, fmt.Sprintf("Feature '%s' details not implemented for theme '%s'", featureName, themeId), nil)
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"count": count,
+	})
 }
