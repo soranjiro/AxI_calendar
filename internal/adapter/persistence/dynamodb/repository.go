@@ -13,7 +13,7 @@ import (
 // EntryRepository defines the interface for entry data operations.
 type EntryRepository interface {
 	GetEntryByID(ctx context.Context, userID uuid.UUID, entryID uuid.UUID) (*entry.Entry, error)
-	ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeIDs []uuid.UUID) ([]entry.Entry, error)
+	ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeID uuid.UUID) ([]entry.Entry, error)
 	// GetEntriesForSummary retrieves entries for a specific user, theme, and year-month (YYYY-MM).
 	GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]entry.Entry, error)
 	CreateEntry(ctx context.Context, entry *entry.Entry) error

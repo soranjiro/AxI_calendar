@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // CreateTheme handles the logic for creating a new theme.

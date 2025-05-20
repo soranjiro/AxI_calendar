@@ -3,12 +3,13 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // DeleteEntry handles the logic for deleting an entry.
@@ -20,6 +21,7 @@ func (uc *UseCase) DeleteEntry(ctx context.Context, userID uuid.UUID, entryID uu
 			return echo.NewHTTPError(http.StatusNotFound, api.Error{Message: "Entry not found"})
 		}
 		// Log internal error if needed
+		log.Printf("Error fetching entry from repository: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to retrieve entry before delete"})
 	}
 
@@ -30,6 +32,7 @@ func (uc *UseCase) DeleteEntry(ctx context.Context, userID uuid.UUID, entryID uu
 			return echo.NewHTTPError(http.StatusNotFound, api.Error{Message: "Entry not found during delete attempt"})
 		}
 		// Log internal error if needed
+		log.Printf("Error deleting entry from repository: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to delete entry"})
 	}
 

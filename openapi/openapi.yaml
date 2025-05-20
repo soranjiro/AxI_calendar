@@ -335,26 +335,9 @@ paths:
       security:
         - CognitoAuth: []
       parameters:
-        - name: start_date
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date
-          description: Start date (YYYY-MM-DD)
-        - name: end_date
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date
-          description: End date (YYYY-MM-DD)
-        - name: theme_ids
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Comma-separated list of theme IDs to filter by
+        - $ref: "#/components/parameters/ThemeIdQuery"
+        - $ref: "#/components/parameters/StartDateParam"
+        - $ref: "#/components/parameters/EndDateParam"
       responses:
         "200":
           description: A list of entries
@@ -766,6 +749,30 @@ components:
         type: string
         format: uuid
       description: ID of the entry
+    ThemeIdQuery:
+      name: theme_id
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of the theme
+    StartDateParam:
+      name: start_date
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: Start date for the date range filter (inclusive)
+    EndDateParam:
+      name: end_date
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: End date for the date range filter (inclusive)
 
   responses:
     BadRequest:

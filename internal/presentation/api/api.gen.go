@@ -165,14 +165,23 @@ type User struct {
 	UserId *openapi_types.UUID  `json:"user_id,omitempty"`
 }
 
+// EndDateParam defines model for EndDateParam.
+type EndDateParam = openapi_types.Date
+
 // EntryIdParam defines model for EntryIdParam.
 type EntryIdParam = openapi_types.UUID
 
 // FeatureNameParam defines model for FeatureNameParam.
 type FeatureNameParam = string
 
+// StartDateParam defines model for StartDateParam.
+type StartDateParam = openapi_types.Date
+
 // ThemeIdParam defines model for ThemeIdParam.
 type ThemeIdParam = openapi_types.UUID
+
+// ThemeIdQuery defines model for ThemeIdQuery.
+type ThemeIdQuery = openapi_types.UUID
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
@@ -191,14 +200,14 @@ type Unauthorized = Error
 
 // GetEntriesParams defines parameters for GetEntries.
 type GetEntriesParams struct {
-	// StartDate Start date (YYYY-MM-DD)
-	StartDate openapi_types.Date `form:"start_date" json:"start_date"`
+	// ThemeId ID of the theme
+	ThemeId ThemeIdQuery `form:"theme_id" json:"theme_id"`
 
-	// EndDate End date (YYYY-MM-DD)
-	EndDate openapi_types.Date `form:"end_date" json:"end_date"`
+	// StartDate Start date for the date range filter (inclusive)
+	StartDate StartDateParam `form:"start_date" json:"start_date"`
 
-	// ThemeIds Comma-separated list of theme IDs to filter by
-	ThemeIds *string `form:"theme_ids,omitempty" json:"theme_ids,omitempty"`
+	// EndDate End date for the date range filter (inclusive)
+	EndDate EndDateParam `form:"end_date" json:"end_date"`
 }
 
 // PostAuthConfirmForgotPasswordJSONRequestBody defines body for PostAuthConfirmForgotPassword for application/json ContentType.
@@ -384,6 +393,13 @@ func (w *ServerInterfaceWrapper) GetEntries(ctx echo.Context) error {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetEntriesParams
+	// ------------- Required query parameter "theme_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "theme_id", ctx.QueryParams(), &params.ThemeId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter theme_id: %s", err))
+	}
+
 	// ------------- Required query parameter "start_date" -------------
 
 	err = runtime.BindQueryParameter("form", true, true, "start_date", ctx.QueryParams(), &params.StartDate)
@@ -396,13 +412,6 @@ func (w *ServerInterfaceWrapper) GetEntries(ctx echo.Context) error {
 	err = runtime.BindQueryParameter("form", true, true, "end_date", ctx.QueryParams(), &params.EndDate)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter end_date: %s", err))
-	}
-
-	// ------------- Optional query parameter "theme_ids" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "theme_ids", ctx.QueryParams(), &params.ThemeIds)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter theme_ids: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

@@ -111,8 +111,9 @@ func (e *Entry) ValidateDataAgainstTheme(fields []theme.ThemeField) error {
 type Repository interface {
 	// Define methods for entry CRUD operations, e.g.:
 	GetEntryByID(ctx context.Context, userID, entryID uuid.UUID) (*Entry, error)
-	ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string, themeIDs []uuid.UUID) ([]Entry, error)
+	ListEntriesByDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate time.Time, themeID uuid.UUID) ([]Entry, error)
 	CreateEntry(ctx context.Context, entry *Entry) error
 	UpdateEntry(ctx context.Context, entry *Entry) error
-	DeleteEntry(ctx context.Context, userID, entryID uuid.UUID) error
+	DeleteEntry(ctx context.Context, userID, entryID uuid.UUID, entryDate string) error
+	GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]Entry, error)
 }

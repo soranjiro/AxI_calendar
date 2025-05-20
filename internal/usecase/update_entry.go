@@ -10,14 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/domain"
 	"github.com/soranjiro/axicalendar/internal/domain/entry" // Use domain entry
+	"github.com/soranjiro/axicalendar/internal/presentation/api"
 )
 
 // UpdateEntry handles the logic for updating an entry.
-// Accepts IDs and API request, returns domain entry
-func (uc *UseCase) UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, req api.UpdateEntryRequest) (*entry.Entry, error) {
+// Accepts IDs and domain entry, returns domain entry
+func (uc *UseCase) UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uuid.UUID, updatedDomainEntry entry.Entry) (*entry.Entry, error) {
 	// 1. Get existing entry to find ThemeID and validate ownership/existence
 	existingEntry, err := uc.entryRepo.GetEntryByID(ctx, userID, entryID)
 	if err != nil {
@@ -45,24 +45,25 @@ func (uc *UseCase) UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uu
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, api.Error{Message: "Failed to validate associated theme"})
 	}
 
-	// 3. Prepare updated entry domain model from request and existing data
-	updatedEntry := entry.Entry{
+	// 3. Prepare updated entry domain model (already have it as updatedDomainEntry)
+	// Ensure non-updatable fields are preserved from existingEntry
+	entryToUpdate := entry.Entry{
 		EntryID:   entryID,
 		ThemeID:   existingEntry.ThemeID, // Theme cannot be changed
-		UserID:    userID,
-		EntryDate: req.EntryDate.Format("2006-01-02"), // Store as YYYY-MM-DD string
-		Data:      req.Data,
+		UserID:    userID,                // UserID should match the authenticated user
+		EntryDate: updatedDomainEntry.EntryDate,
+		Data:      updatedDomainEntry.Data,
 		CreatedAt: existingEntry.CreatedAt, // Preserve original creation time
 		// UpdatedAt, PK, SK handled by repository
 	}
 
 	// 4. Validate new data against theme fields using domain method
-	if err := updatedEntry.ValidateDataAgainstTheme(th.Fields); err != nil {
+	if err := entryToUpdate.ValidateDataAgainstTheme(th.Fields); err != nil {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: fmt.Sprintf("Entry data validation failed: %v", err)})
 	}
 
 	// 5. Call repository to update entry
-	err = uc.entryRepo.UpdateEntry(ctx, &updatedEntry)
+	err = uc.entryRepo.UpdateEntry(ctx, &entryToUpdate)
 	if err != nil {
 		if errors.Is(err, domain.ErrEntryNotFound) {
 			// This could happen if the entry was deleted between the Get and Update calls
@@ -81,8 +82,8 @@ func (uc *UseCase) UpdateEntry(ctx context.Context, userID uuid.UUID, entryID uu
 	if err != nil {
 		// Log the inconsistency, but return the data we sent for update as approximation
 		log.Printf("WARN: Failed to fetch updated entry %s after successful update: %v", entryID, err)
-		updatedEntry.UpdatedAt = time.Now() // Approximate update time
-		return &updatedEntry, nil
+		entryToUpdate.UpdatedAt = time.Now() // Approximate update time
+		return &entryToUpdate, nil
 	}
 
 	// 7. Return the fetched domain entry

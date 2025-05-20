@@ -9,9 +9,9 @@ import (
 	"syscall"   // OSシグナル処理のためにインポート
 	"time"      // タイムアウト処理のためにインポート
 
+	repo "github.com/soranjiro/axicalendar/internal/adapter/persistence/dynamodb"
 	"github.com/soranjiro/axicalendar/internal/presentation/api"
 	"github.com/soranjiro/axicalendar/internal/presentation/api/handler"
-	repo "github.com/soranjiro/axicalendar/internal/adapter/persistence/dynamodb"
 	"github.com/soranjiro/axicalendar/internal/usecase"
 
 	"github.com/labstack/echo/v4"
