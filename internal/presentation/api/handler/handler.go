@@ -496,30 +496,32 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
-// GetThemesThemeIdFeaturesFeatureName executes a specific feature for a theme.
-func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error {
+
+func (h *ApiHandler) GetThemesThemeIdCount(ctx echo.Context, themeId openapi_types.UUID, params api.GetThemesThemeIdCountParams) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
 		return err // Already formatted echo.HTTPError
 	}
 
-	// Call the use case method
-	analysisResult, err := h.useCase.ExecuteFeature(ctx.Request().Context(), userID, themeId, featureName)
+	startDate := params.StartDate.Time
+	endDate := params.EndDate.Time
+
+	// Call the use case method with userID, themeId, startDate, endDate
+	count, err := h.useCase.CountThemeEntries(ctx.Request().Context(), userID, themeId, startDate, endDate)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			return httpErr // Return the error directly from use case
 		}
-		// Check if the error is a "not found" type for the feature itself or theme
-		// This might need more specific error types from the use case for better mapping
-		if errors.Is(err, os.ErrNotExist) { // Example, replace with actual error check
-			return newApiError(http.StatusNotFound, fmt.Sprintf("Feature '%s' or Theme '%s' not found", featureName, themeId), err)
-		}
-		return newApiError(http.StatusInternalServerError, fmt.Sprintf("Failed to execute feature '%s' for theme '%s'", featureName, themeId), err)
+		return newApiError(http.StatusInternalServerError, "Failed to count theme entries", err)
 	}
 
-	// The analysisResult is already in the format map[string]interface{}
-	// which should be directly usable by ctx.JSON if the values are JSON-serializable.
-	// The OpenAPI schema defines this as: type: object, additionalProperties: true
-	return ctx.JSON(http.StatusOK, analysisResult)
+	// Convert result to api.ThemeEntryCountResponse
+	apiResponse := api.ThemeEntryCountResponse{
+		ThemeId:   themeId,
+		StartDate: params.StartDate,
+		EndDate:   params.EndDate,
+		Count:     count,
+	}
+	return ctx.JSON(http.StatusOK, apiResponse)
 }
