@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
-	"github.com/soranjiro/axicalendar/internal/domain/feature"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
 	"github.com/soranjiro/axicalendar/internal/domain/user"
 )
@@ -39,7 +38,6 @@ type UseCase interface {
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
 
-	// Features
-	// Executes a registered feature and returns its analysis result
-	ExecuteFeature(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, featureName string) (feature.AnalysisResult, error)
+	// CountThemeEntries counts entries for a theme within a date range.
+	CountThemeEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate time.Time, endDate time.Time) (float64, error)
 }
