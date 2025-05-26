@@ -2,28 +2,54 @@ package usecase
 
 import (
 	"context"
+	"errors" // Added import for errors package
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/soranjiro/axicalendar/internal/domain"
+	"github.com/labstack/echo/v4"
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
-	"github.com/soranjiro/axicalendar/internal/presentation/api"
-	"github.com/soranjiro/axicalendar/internal/repository"
+	"github.com/soranjiro/axicalendar/internal/usecase/features"
 )
 
-// GetEntriesCount retrieves the count of entries for a specific user and theme.
-func (uc *UseCase) GetEntriesCount(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (int64, error) {
-	// 1. Set up the GSI to retrieve both the theme and entries corresponding to the theme ID
-	data = ...
-	theme = data...
-	entries = data...
+func (uc *UseCase) CountThemeEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, startDate time.Time, endDate time.Time) (float64, error) {
+	log.Printf("UseCase: CountThemeEntries called for UserID: %s, ThemeID: %s, StartDate: %s, EndDate: %s", userID, themeID, startDate, endDate)
 
-	// 2. Call the count feature
-	count, err := uc.feature.Count(ctx, theme, entries)
+	// Get Theme information
+	th, err := uc.themeRepo.GetThemeByID(ctx, userID, themeID)
 	if err != nil {
-		return 0, fmt.Errorf("error getting entries count for user %s: %w", userID, err)
+		log.Printf("ERROR: Failed to get theme %s for user %s: %v", themeID, userID, err)
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return 0, err // Return the original HTTPError
+		}
+		return 0, fmt.Errorf("failed to retrieve theme: %w", err)
 	}
 
+	// Get entries for the specified theme and date range
+	entriesList, err := uc.entryRepo.ListEntriesByDateRange(ctx, userID, startDate, endDate, themeID)
+	if err != nil {
+		log.Printf("ERROR: Failed to get entries for theme %s, user %s: %v", themeID, userID, err)
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return 0, err // Return the original HTTPError
+		}
+		return 0, fmt.Errorf("failed to retrieve entries: %w", err)
+	}
+
+	// Convert []entry.Entry to entry.Entries for processing
+	entries := entry.Entries(entriesList)
+	log.Printf("UseCase: Retrieved %d entries for processing", len(entries))
+
+	// Create Features instance and process entries based on supported_features
+	featuresProcessor := features.NewFeatures()
+	count, err := featuresProcessor.Count(ctx, *th, entries)
+	if err != nil {
+		log.Printf("ERROR: Failed to process features for theme %s: %v", themeID, err)
+		return 0, fmt.Errorf("failed to process features: %w", err)
+	}
+
+	log.Printf("UseCase: Count result for theme %s: %f", themeID, count)
 	return count, nil
 }
