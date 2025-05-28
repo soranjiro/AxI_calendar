@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/soranjiro/axicalendar/internal/presentation/api"
 
@@ -529,30 +528,15 @@ func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, theme
 	startDateStr := ctx.QueryParam("start_date")
 	endDateStr := ctx.QueryParam("end_date")
 
-	var startDate, endDate time.Time
-	if startDateStr != "" {
-		startDate, err = time.Parse("2006-01-02", startDateStr)
-		if err != nil {
-			return newApiError(http.StatusBadRequest, "Invalid start_date format", err)
-		}
-	} else {
-		// Default to 30 days ago
-		startDate = time.Now().AddDate(0, 0, -30)
-	}
-
-	if endDateStr != "" {
-		endDate, err = time.Parse("2006-01-02", endDateStr)
-		if err != nil {
-			return newApiError(http.StatusBadRequest, "Invalid end_date format", err)
-		}
-	} else {
-		// Default to today
-		endDate = time.Now()
+	// Validate and convert feature execution parameters using converter
+	params, err := converter.ValidateAndConvertFeatureParams(themeId, featureName, startDateStr, endDateStr)
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid feature execution parameters", err)
 	}
 
 	// For now, we only support the "count" feature which uses CountThemeEntries
-	if featureName == "count" {
-		count, err := h.useCase.CountThemeEntries(ctx.Request().Context(), userID, themeId, startDate, endDate)
+	if params.FeatureName == "count" {
+		count, err := h.useCase.CountThemeEntries(ctx.Request().Context(), userID, params.ThemeID, params.StartDate, params.EndDate)
 		if err != nil {
 			var httpErr *echo.HTTPError
 			if errors.As(err, &httpErr) {
@@ -561,13 +545,9 @@ func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, theme
 			return newApiError(http.StatusInternalServerError, "Failed to execute feature", err)
 		}
 
-		return ctx.JSON(http.StatusOK, map[string]interface{}{
-			"feature_name": featureName,
-			"theme_id":     themeId,
-			"result":       count,
-			"start_date":   startDate.Format("2006-01-02"),
-			"end_date":     endDate.Format("2006-01-02"),
-		})
+		// Convert result to API response using converter
+		response := converter.ToApiFeatureExecutionResult(params.FeatureName, params.ThemeID, count, params.StartDate, params.EndDate)
+		return ctx.JSON(http.StatusOK, response)
 	}
 
 	return newApiError(http.StatusNotImplemented, "Feature not implemented", nil)
