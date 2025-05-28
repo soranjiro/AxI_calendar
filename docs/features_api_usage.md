@@ -6,11 +6,23 @@
 
 ## アーキテクチャ
 
-```
-API Request → Handler → UseCase.CountThemeEntries() → Features.Count()
-              ↓                     ↓                      ↓
-         テーマ取得        日付範囲でエントリ取得        機能処理
-         アクセス確認       By Date Range         結果返却
+```mermaid
+flowchart TD
+    A[API Request] --> B[Handler]
+    B --> C[UseCase.CountThemeEntries]
+    C --> D[Features.Count]
+    
+    B --> E[テーマ取得<br/>アクセス確認]
+    C --> F[日付範囲でエントリ取得<br/>By Date Range]
+    D --> G[機能処理<br/>結果返却]
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#fff3e0
+    style D fill:#e8f5e8
+    style E fill:#fce4ec
+    style F fill:#fff8e1
+    style G fill:#f1f8e9
 ```
 
 ## 主要コンポーネント
