@@ -22,9 +22,9 @@ type Entry struct {
 	Data      map[string]interface{} `dynamodbav:"Data"`      // Custom fields data
 	CreatedAt time.Time              `dynamodbav:"CreatedAt"`
 	UpdatedAt time.Time              `dynamodbav:"UpdatedAt"`
-	// GSI1 Keys for querying by date range
-	GSI1PK string `dynamodbav:"GSI1PK"` // Same as PK: USER#<user_id>
-	GSI1SK string `dynamodbav:"GSI1SK"` // ENTRY_DATE#<entry_date>#<theme_id>#<entry_id> (Updated based on design doc GSI-1)
+	// GSI1 Keys for querying by date range and theme
+	GSI1PK string `dynamodbav:"GSI1PK"` // USER#<user_id>
+	GSI1SK string `dynamodbav:"GSI1SK"` // THEME#<theme_id>#ENTRY#<entry_date>#<entry_id>
 }
 
 // ValidateDataAgainstTheme checks if the entry's data matches the theme's field definitions.
@@ -116,5 +116,5 @@ type Repository interface {
 	UpdateEntry(ctx context.Context, entry *Entry) error
 	DeleteEntry(ctx context.Context, userID, entryID uuid.UUID, entryDate string) error
 	GetEntriesForSummary(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, yearMonth string) ([]Entry, error)
+	GetThemeAndEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*theme.Theme, []Entry, error)
 }
-

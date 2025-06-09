@@ -297,8 +297,8 @@ type ServerInterface interface {
 	// (PUT /themes/{theme_id})
 	PutThemesThemeId(ctx echo.Context, themeId ThemeIdParam) error
 	// Get the count of entries for a specific theme
-	// (GET /themes/{theme_id}/Count)
-	GetThemesThemeIdCount(ctx echo.Context, themeId ThemeIdParam) error
+	// (GET /themes/{theme_id}/entries/count)
+	GetThemesThemeIdEntriesCount(ctx echo.Context, themeId ThemeIdParam) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -566,8 +566,8 @@ func (w *ServerInterfaceWrapper) PutThemesThemeId(ctx echo.Context) error {
 	return err
 }
 
-// GetThemesThemeIdCount converts echo context to params.
-func (w *ServerInterfaceWrapper) GetThemesThemeIdCount(ctx echo.Context) error {
+// GetThemesThemeIdEntriesCount converts echo context to params.
+func (w *ServerInterfaceWrapper) GetThemesThemeIdEntriesCount(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "theme_id" -------------
 	var themeId ThemeIdParam
@@ -580,7 +580,7 @@ func (w *ServerInterfaceWrapper) GetThemesThemeIdCount(ctx echo.Context) error {
 	ctx.Set(CognitoAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetThemesThemeIdCount(ctx, themeId)
+	err = w.Handler.GetThemesThemeIdEntriesCount(ctx, themeId)
 	return err
 }
 
@@ -631,6 +631,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/themes/:theme_id", wrapper.DeleteThemesThemeId)
 	router.GET(baseURL+"/themes/:theme_id", wrapper.GetThemesThemeId)
 	router.PUT(baseURL+"/themes/:theme_id", wrapper.PutThemesThemeId)
-	router.GET(baseURL+"/themes/:theme_id/Count", wrapper.GetThemesThemeIdCount)
+	router.GET(baseURL+"/themes/:theme_id/entries/count", wrapper.GetThemesThemeIdEntriesCount)
 
 }

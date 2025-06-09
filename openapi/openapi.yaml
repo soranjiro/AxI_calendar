@@ -299,7 +299,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /themes/{theme_id}/Count:
+  /themes/{theme_id}/entries/count:
     get:
       summary: Get the count of entries for a specific theme
       tags:

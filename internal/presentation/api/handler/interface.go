@@ -37,5 +37,5 @@ type UseCase interface {
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
 
-	GetEntriesCount(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (int64, error)
+	GetThemesThemeIdEntriesCount(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (int64, error)
 }

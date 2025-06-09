@@ -496,14 +496,14 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
-// GetEntriesCount retrieves the count of entries for a specific theme.
-func (h *ApiHandler) GetEntriesCount(ctx echo.Context, themeId openapi_types.UUID) error {
+// GetThemesThemeIdEntriesCount retrieves the count of entries for a specific theme.
+func (h *ApiHandler) GetThemesThemeIdEntriesCount(ctx echo.Context, themeId openapi_types.UUID) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
 		return err
 	}
 
-	count, err := h.useCase.GetEntriesCount(ctx.Request().Context(), userID, themeId)
+	count, err := h.useCase.GetThemesThemeIdEntriesCount(ctx.Request().Context(), userID, themeId)
 	if err != nil {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {

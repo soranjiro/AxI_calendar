@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
-
 	"github.com/soranjiro/axicalendar/internal/domain/entry"
+	"github.com/soranjiro/axicalendar/internal/domain/theme"
 )
 
 // dynamoDBEntryRepository implements the EntryRepository interface using DynamoDB.
@@ -22,7 +22,7 @@ type dynamoDBEntryRepository struct {
 }
 
 // NewEntryRepository creates a new DynamoDB-backed EntryRepository.
-func NewEntryRepository(dbClient *DynamoDBClient) entry.Repository { // Changed EntryRepository to entry.Repository
+func NewEntryRepository(dbClient *DynamoDBClient) EntryRepository { // Changed EntryRepository to entry.Repository
 	return &dynamoDBEntryRepository{dbClient: dbClient}
 }
 
@@ -444,4 +444,68 @@ func (r *dynamoDBEntryRepository) DeleteEntry(ctx context.Context, userID uuid.U
 
 	log.Printf("Successfully deleted entry %s for user %s", entryID, userID)
 	return nil
+}
+
+// GetThemeAndEntries retrieves a theme and its associated entries in a single query using GSI.
+func (r *dynamoDBEntryRepository) GetThemeAndEntries(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (*theme.Theme, []entry.Entry, error) {
+	pk := userPK(userID.String())
+	// GSI1SK はテーマとエントリーで異なるプレフィックスを持つため、
+	// クエリでは共通のプレフィックスまでを指定し、アプリケーション側でフィルタリングするか、
+	// または2回のクエリに分ける必要があります。
+	// ここでは、GSIの設計上、テーマとエントリーを完全に分離して一度に取得するのは難しいため、
+	// まずテーマを取得し、次にエントリーを取得する形をとります。
+	// シングルテーブル設計の利点を活かすには、より複雑なGSI設計か、
+	// あるいは取得後のアプリケーションロジックでの処理が必要になります。
+
+	// 1. Get Theme
+	themeOutput, err := r.dbClient.Client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(r.dbClient.TableName),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: themePK(themeID.String())},
+			"SK": &types.AttributeValueMemberS{Value: themeMetadataSK()},
+		},
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get theme item: %w", err)
+	}
+
+	if themeOutput.Item == nil {
+		return nil, nil, nil // Theme not found
+	}
+
+	var th theme.Theme
+	err = attributevalue.UnmarshalMap(themeOutput.Item, &th)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal theme item: %w", err)
+	}
+
+	// 2. Get Entries using GSI1
+	// GSI1PK: USER#<user_id>
+	// GSI1SK: THEME#<theme_id>#ENTRY#<entry_date>#<entry_id>
+	queryInput := &dynamodb.QueryInput{
+		TableName:              aws.String(r.dbClient.TableName),
+		IndexName:              aws.String("GSI1"), // GSI1の名称を指定
+		KeyConditionExpression: aws.String("GSI1PK = :pkval AND begins_with(GSI1SK, :skval)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pkval": &types.AttributeValueMemberS{Value: pk},
+			":skval": &types.AttributeValueMemberS{Value: "THEME#" + themeID.String() + "#ENTRY#"},
+		},
+	}
+
+	var entries []entry.Entry
+	paginator := dynamodb.NewQueryPaginator(r.dbClient.Client, queryInput)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to query entries: %w", err)
+		}
+		var pagedEntries []entry.Entry
+		err = attributevalue.UnmarshalListOfMaps(page.Items, &pagedEntries)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to unmarshal entries: %w", err)
+		}
+		entries = append(entries, pagedEntries...)
+	}
+
+	return &th, entries, nil
 }
