@@ -36,4 +36,6 @@ type UseCase interface {
 	UpdateTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID, updatedThemeData theme.Theme) (*theme.Theme, error)
 	// Accepts IDs
 	DeleteTheme(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) error
+
+	GetThemesThemeIdEntriesCount(ctx context.Context, userID uuid.UUID, themeID uuid.UUID) (int64, error)
 }

@@ -46,6 +46,10 @@ type Theme struct {
 	SupportedFeatures []string     `dynamodbav:"SupportedFeatures"`
 	CreatedAt         time.Time    `dynamodbav:"CreatedAt"`
 	UpdatedAt         time.Time    `dynamodbav:"UpdatedAt"`
+
+	// GSI for UserThemeIndex
+	GSI1PK string `dynamodbav:"GSI1PK"` // USER#<user_id>
+	GSI1SK string `dynamodbav:"GSI1SK"` // THEME#<theme_id>#METADATA
 }
 
 // UserThemeLink represents the association between a user and a theme they can use.
