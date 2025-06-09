@@ -517,8 +517,8 @@ func (h *ApiHandler) GetEntriesCount(ctx echo.Context, themeId openapi_types.UUI
 	})
 }
 
-// GetThemesThemeIdFeaturesFeatureName handles the feature execution for a specific theme
-func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId api.ThemeIdParam, featureName api.FeatureNameParam) error {
+// ExecuteFeature handles the feature execution for a specific theme
+func (h *ApiHandler) ExecuteFeature(ctx echo.Context, themeId api.ThemeIdParam, featureName api.FeatureNameParam) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
 		return err
