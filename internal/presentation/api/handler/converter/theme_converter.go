@@ -3,6 +3,7 @@ package converter
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/soranjiro/axicalendar/internal/domain/theme"
@@ -226,4 +227,73 @@ func FromApiUpdateThemeRequest(req api.UpdateThemeRequest, themeID uuid.UUID, us
 		// UpdatedAt, PK, SK handled by repository
 	}
 	return updatedTheme, nil
+}
+
+// --- Feature Execution Parameter Converters ---
+
+// FeatureExecutionParams represents validated parameters for feature execution
+type FeatureExecutionParams struct {
+	ThemeID     uuid.UUID
+	FeatureName string
+	StartDate   time.Time
+	EndDate     time.Time
+}
+
+// ValidateAndConvertFeatureParams validates and converts feature execution parameters
+func ValidateAndConvertFeatureParams(themeID api.ThemeIdParam, featureName api.FeatureNameParam, startDateStr, endDateStr string) (FeatureExecutionParams, error) {
+	// Validate feature name
+	if featureName == "" {
+		return FeatureExecutionParams{}, fmt.Errorf("feature name is required")
+	}
+
+	// Convert theme ID (already validated by OpenAPI)
+	convertedThemeID := uuid.UUID(themeID)
+
+	var startDate, endDate time.Time
+	var err error
+
+	// Parse and validate start date
+	if startDateStr != "" {
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			return FeatureExecutionParams{}, fmt.Errorf("invalid start_date format: %w", err)
+		}
+	} else {
+		// Default to 30 days ago
+		startDate = time.Now().AddDate(0, 0, -30)
+	}
+
+	// Parse and validate end date
+	if endDateStr != "" {
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			return FeatureExecutionParams{}, fmt.Errorf("invalid end_date format: %w", err)
+		}
+	} else {
+		// Default to today
+		endDate = time.Now()
+	}
+
+	// Validate date range
+	if startDate.After(endDate) {
+		return FeatureExecutionParams{}, fmt.Errorf("start_date cannot be after end_date")
+	}
+
+	return FeatureExecutionParams{
+		ThemeID:     convertedThemeID,
+		FeatureName: string(featureName),
+		StartDate:   startDate,
+		EndDate:     endDate,
+	}, nil
+}
+
+// ToApiFeatureExecutionResult converts feature execution result to API response
+func ToApiFeatureExecutionResult(featureName string, themeID uuid.UUID, result interface{}, startDate, endDate time.Time) map[string]interface{} {
+	return map[string]interface{}{
+		"feature_name": featureName,
+		"theme_id":     themeID,
+		"result":       result,
+		"start_date":   startDate.Format("2006-01-02"),
+		"end_date":     endDate.Format("2006-01-02"),
+	}
 }

@@ -23,7 +23,7 @@ func (uc *UseCase) GetEntries(ctx context.Context, userID uuid.UUID, themeID uui
 		return nil, echo.NewHTTPError(http.StatusBadRequest, api.Error{Message: "end_date cannot be before start_date"})
 	}
 
-	// Call repository with time.Time dates and themeID as a slice
+	// Call the repository directly
 	entries, err := uc.entryRepo.ListEntriesByDateRange(ctx, userID, startDate, endDate, themeID)
 	if err != nil {
 		// Log the internal error if needed

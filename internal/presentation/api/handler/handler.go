@@ -496,15 +496,59 @@ func (h *ApiHandler) PutThemesThemeId(ctx echo.Context, themeId openapi_types.UU
 	return ctx.JSON(http.StatusOK, apiTheme)
 }
 
-// GetThemesThemeIdFeaturesFeatureName retrieves details about a specific feature supported by a theme.
-// Placeholder implementation.
-func (h *ApiHandler) GetThemesThemeIdFeaturesFeatureName(ctx echo.Context, themeId openapi_types.UUID, featureName string) error {
+// GetEntriesCount retrieves the count of entries for a specific theme.
+func (h *ApiHandler) GetEntriesCount(ctx echo.Context, themeId openapi_types.UUID) error {
 	userID, err := GetUserIDFromContext(ctx.Request().Context())
 	if err != nil {
 		return err
 	}
 
-	log.Printf("GetThemesThemeIdFeaturesFeatureName called for ThemeID: %s, Feature: %s, UserID: %s (Not Implemented - Requires Feature Use Case)", themeId, featureName, userID)
+	count, err := h.useCase.GetEntriesCount(ctx.Request().Context(), userID, themeId)
+	if err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) {
+			return httpErr // Return the error directly from use case
+		}
+		return newApiError(http.StatusInternalServerError, "Failed to retrieve entries count", err)
+	}
 
-	return newApiError(http.StatusNotImplemented, fmt.Sprintf("Feature '%s' details not implemented for theme '%s'", featureName, themeId), nil)
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"count": count,
+	})
+}
+
+// ExecuteFeature handles the feature execution for a specific theme
+func (h *ApiHandler) ExecuteFeature(ctx echo.Context, themeId api.ThemeIdParam, featureName api.FeatureNameParam) error {
+	userID, err := GetUserIDFromContext(ctx.Request().Context())
+	if err != nil {
+		return err
+	}
+
+	// Parse query parameters for date range
+	startDateStr := ctx.QueryParam("start_date")
+	endDateStr := ctx.QueryParam("end_date")
+
+	// Validate and convert feature execution parameters using converter
+	params, err := converter.ValidateAndConvertFeatureParams(themeId, featureName, startDateStr, endDateStr)
+	if err != nil {
+		return newApiError(http.StatusBadRequest, "Invalid feature execution parameters", err)
+	}
+
+	// For now, we only support the "count" feature which uses CountThemeEntries
+	if params.FeatureName == "count" {
+		count, err := h.useCase.CountThemeEntries(ctx.Request().Context(), userID, params.ThemeID, params.StartDate, params.EndDate)
+		if err != nil {
+			var httpErr *echo.HTTPError
+			if errors.As(err, &httpErr) {
+				return httpErr
+			}
+			return newApiError(http.StatusInternalServerError, "Failed to execute feature", err)
+		}
+
+		// Convert result to API response using converter
+		response := converter.ToApiFeatureExecutionResult(params.FeatureName, params.ThemeID, count, params.StartDate, params.EndDate)
+		return ctx.JSON(http.StatusOK, response)
+	}
+
+	return newApiError(http.StatusNotImplemented, "Feature not implemented", nil)
 }

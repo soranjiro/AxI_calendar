@@ -309,21 +309,41 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ThemeIdParam"
         - $ref: "#/components/parameters/FeatureNameParam"
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date for the feature execution (optional, defaults to 30 days ago)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date for the feature execution (optional, defaults to today)
       responses:
         "200":
           description: Feature execution result
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
-                description: The result structure depends on the executed feature.
+                $ref: "#/components/schemas/FeatureExecutionResult"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "501":
+          description: Feature not implemented
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -724,6 +744,40 @@ components:
           type: string
       required:
         - message
+    FeatureExecutionResult:
+      type: object
+      properties:
+        feature_name:
+          type: string
+          description: The name of the executed feature
+          example: "count"
+        theme_id:
+          type: string
+          format: uuid
+          description: The ID of the theme the feature was executed on
+        result:
+          oneOf:
+            - type: integer
+              description: Count result for count feature
+            - type: number
+              description: Numeric result for aggregation features
+            - type: object
+              description: Complex result object for advanced features
+          description: The result of the feature execution, type depends on the feature
+        start_date:
+          type: string
+          format: date
+          description: The start date used for the feature execution
+        end_date:
+          type: string
+          format: date
+          description: The end date used for the feature execution
+      required:
+        - feature_name
+        - theme_id
+        - result
+        - start_date
+        - end_date
 
   parameters:
     ThemeIdParam:
